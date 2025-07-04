@@ -1,0 +1,7 @@
+[flake8]
+max-line-length = 100
+ignore =
+    F401,  # unused-import
+    F841,  # local variable assigned but never used
+    E302,  # too many blank lines
+extend-ignore = E203, W503, F821

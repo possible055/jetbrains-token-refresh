@@ -1,0 +1,35 @@
+# Python Basic
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Build / Distribution
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Virtual Environments
+.venv*/
+venv*/
+
+# Testing / Coverage
+.tox/
+.nox/
+.pytest_cache/
+.coverage*
+
+# Linter / formatter cache
+.pylint.d/
+
+# IDE editor settings
+.vscode/
+
+# OS / Logs / Env
+.DS_Store
+Thumbs.db
+*.log
+.env
+
+# --- project-specific rules ---
+issues/
