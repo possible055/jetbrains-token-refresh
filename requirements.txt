@@ -1,0 +1,4 @@
+fake_useragent==2.2.0
+Requests==2.32.4
+setuptools==78.1.1
+urllib3==2.5.0

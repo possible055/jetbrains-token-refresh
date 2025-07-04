@@ -12,27 +12,22 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "simple_eval"
+name = "jetbrain_refresh_token"
 version = "0.1.0"
-authors = [{ name = "Simple Eval Team", email = "contact@simple-eval.com" }]
-description = "A simple evaluation framework for machine learning models"
+authors = [{ name = "possible055", email = "possble055@gmail.com" }]
+description = ""
 readme = "README.md"
 license = { text = "MIT" }
 requires-python = ">=3.11"
 
-# 從 requirements.txt 同步的實際依賴
 dependencies = [
-    "datasets==3.5.0",
-    "pandas==2.2.3",
-    "python-dotenv==1.1.0",
-    "torch==2.6.0",
-    "tqdm==4.67.1",
-    "transformers==4.51.3",
-    "vllm==0.8.4",
-    "sentence-transformers==2.0.0",
+    "fake_useragent==2.2.0",
+    "Requests==2.32.4",
+    "setuptools==78.1.1",
+    "urllib3==2.5.0",
 ]
 
-keywords = ["machine learning", "evaluation", "nlp", "transformers", "llm"]
+keywords = ["python"]
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
@@ -45,24 +40,20 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 
-# CLI 入口
 [project.scripts]
-simple-eval = "simple_eval.main:main"
+simple-eval = "jetbrain_refresh_token.main:main"
 
-# 專案連結
 [project.urls]
-Source = "https://github.com/simple-eval/simple_eval"
-Bug-Tracker = "https://github.com/simple-eval/simple_eval/issues"
+Source = "https://github.com/possible055/jetbrains-token-refresh"
+Bug-Tracker = "https://github.com/possible055/jetbrains-token-refresh/issues"
 
-# ---- setuptools 專用設定 ----
 [tool.setuptools]
 include-package-data = true
 
-# 自動發現所有套件，類似於 setup.py 中的 find_packages()
 [tool.setuptools.packages.find]
-# 從這些目錄開始尋找套件
+
 where = ["."]
-# 包含這些套件名稱模式
+
 include = ["simple_eval*"]
-# 排除這些套件（如果需要的話）
+
 # exclude = ["tests*"]
