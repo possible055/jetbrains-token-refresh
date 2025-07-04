@@ -1,0 +1,17 @@
+{
+  "accounts": {
+    "account1": {
+      "access_token": "example_access_token_for_account1",
+      "refresh_token": "example_refresh_token_for_account1",
+      "jwt_token": "example_jwt_token_for_account1",
+      "license_id": "license_id_for_account1"
+    },
+    "account2": {
+      "access_token": "example_access_token_for_account2",
+      "refresh_token": "example_refresh_token_for_account2",
+      "jwt_token": "example_jwt_token_for_account2",
+      "license_id": "license_id_for_account2"
+    }
+  },
+  "default_account": "account1"
+}
