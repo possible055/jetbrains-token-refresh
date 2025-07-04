@@ -1,7 +1,7 @@
 import logging
 from pathlib import Path
 
-from jetbrain_refresh_token import LOG_PATH
+from jetbrain_refresh_token.constants import LOG_PATH
 
 
 def setup_logging():
