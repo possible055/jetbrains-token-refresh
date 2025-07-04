@@ -1,5 +1,4 @@
 import json
-import logging
 from typing import Any, Dict, Optional
 
 import requests
@@ -7,19 +6,14 @@ from fake_useragent import UserAgent
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from jetbrain_refresh_token import LOG_PATH
+from jetbrain_refresh_token.logging_setup import get_logger
 
 OAUTH_URL = "https://oauth.account.jetbrains.com/oauth2/token"
 JWT_AUTH_URL = "https://api.jetbrains.ai/auth/jetbrains-jwt/provide-access/license/v2"
 CLIENT_ID = "ide"
 
 
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[logging.FileHandler(f"{LOG_PATH}/jetbrain_api.log"), logging.StreamHandler()],
-)
-logger = logging.getLogger("jetbrain_api")
+logger = get_logger("api.refresh_token")
 
 
 def requests_post(
