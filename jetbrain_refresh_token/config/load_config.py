@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from jetbrain_refresh_token.config import logger
-from jetbrain_refresh_token.constants import BASE_PATH
+from jetbrain_refresh_token.constants import BASE_PATH, CONFIG_PATH
 
 
 def load_config(config_path: Optional[Union[str, Path]] = None) -> Optional[Dict]:
@@ -15,8 +15,7 @@ def load_config(config_path: Optional[Union[str, Path]] = None) -> Optional[Dict
     If `config_path` is None, the default config location will be used.
 
     Args:
-        config_path (Union[str, Path], optional):
-            Path to the configuration file.
+        config_path (Union[str, Path], optional): Path to the configuration file.
             If None, uses default config.json in config directory.
 
     Returns:
@@ -64,9 +63,9 @@ def get_account_tokens(
 
     Args:
         account_name (str, optional): Account name to retrieve tokens for.
-                                      If None, uses the default account.
+            If None, uses the default account.
         config_path (Union[str, Path], optional): Path to the configuration file.
-                                                  If None, uses default config location.
+            If None, uses default config location.
 
     Returns:
         Optional[Dict]: Dictionary of account tokens if available; otherwise None.
@@ -115,41 +114,34 @@ def list_accounts(config_path: Optional[Union[str, Path]] = None) -> List[Tuple[
 def save_account_tokens(
     account_name: str,
     tokens: Dict,
-    config_path: Optional[Union[str, Path]] = None,
-    set_as_default: bool = False,
+    config_path: Optional[Union[str, Path]] = CONFIG_PATH,
 ) -> bool:
     """
     Save or update account tokens in the configuration file.
 
     Args:
         account_name (str): Name of the account to save.
-        tokens (Dict): Dictionary containing token information.
+            tokens (Dict): Dictionary containing token information.
         config_path (Union[str, Path], optional): Path to the configuration file.
-                                                 If None, uses default config location.
+            If None, uses default config location.
         set_as_default (bool, optional): Whether to set this account as default. Defaults to False.
 
     Returns:
         bool: True if successful, False otherwise.
     """
-    try:
-        # If no path provided, use default location
-        if config_path is None:
-            config_path = BASE_PATH / "config" / "config.json"
-        # If string path provided, convert to Path object
-        elif isinstance(config_path, str):
-            config_path = Path(config_path)
+    if config_path is None:
+        config_path = BASE_PATH / "config" / "config.json"
+    elif isinstance(config_path, str):
+        config_path = Path(config_path)
 
-        # Load existing config or create new one
+    try:
         if config_path.exists():
             with open(config_path, 'r', encoding='utf-8') as file:
                 config: Dict[str, Any] = json.load(file)
         else:
             config: Dict[str, Any] = {"accounts": {}}
-
-            # Ensure directory exists
             config_path.parent.mkdir(parents=True, exist_ok=True)
 
-        # Ensure required structure exists
         if "accounts" not in config:
             config["accounts"] = {}
 
@@ -183,141 +175,98 @@ def save_account_tokens(
         # Update account information
         config["accounts"][account_name] = tokens
 
-        # Set as default if requested
-        if set_as_default:
-            config["default_account"] = account_name
-
         # Write back to file
         with open(config_path, 'w', encoding='utf-8') as file:
             json.dump(config, file, indent=2)
 
-        logger.info(f"Successfully saved tokens for account: {account_name}")
+        logger.info("Successfully saved tokens for account: %s", account_name)
         return True
+    # pylint: disable=broad-exception-caught
     except Exception as e:
-        logger.error(f"Failed to save account tokens: {e}")
+        logger.error("Failed to save account tokens: %s", e)
         return False
 
 
 def parse_jwt_token_expiration(jwt_token: str) -> Optional[int]:
     """
-    從 JWT token 解析過期時間。
+    Parse the expiration time from a JWT token.
 
     Args:
-        jwt_token (str): JWT token 字串。
+        jwt_token (str): JWT token string.
 
     Returns:
-        Optional[int]: 以 UNIX 時間戳格式的過期時間，如果無法解析則返回 None。
+        Optional[int]: The expiration time as a UNIX timestamp, or None if it cannot be parsed.
     """
     try:
-        # JWT token 由三部分組成，以點號分隔：header.payload.signature
+        # A JWT token consists of three parts separated by dots: header.payload.signature
         parts = jwt_token.split('.')
         if len(parts) != 3:
             logger.error("Invalid JWT token format: expected 3 parts")
             return None
 
-        # 解碼 payload 部分 (base64url 編碼)
-        # 可能需要添加填充字符 '='
+        # Decode the payload part (base64url encoded)
+        # Padding characters '=' may need to be added
         payload = parts[1]
         payload_padded = payload + '=' * (4 - len(payload) % 4) if len(payload) % 4 else payload
 
         try:
             decoded_bytes = base64.urlsafe_b64decode(payload_padded)
             payload_data = json.loads(decoded_bytes.decode('utf-8'))
+        # pylint: disable=broad-exception-caught
         except Exception as e:
-            logger.error(f"Failed to decode JWT payload: {e}")
+            logger.error("Failed to decode JWT payload: %s", e)
             return None
 
-        # 從 payload 中提取過期時間 (exp claim)
+        # Extract the expiration time (exp claim) from the payload
         if 'exp' in payload_data:
             return payload_data['exp']
 
         logger.warning("JWT token does not contain expiration time (exp claim)")
         return None
+    # pylint: disable=broad-exception-caught
     except Exception as e:
-        logger.error(f"Error parsing JWT token: {e}")
+        logger.error("Error parsing JWT token: %s", e)
         return None
 
 
 def is_jwt_token_expired(account_name: str, config_path: Optional[Union[str, Path]] = None) -> bool:
     """
-    檢查指定帳戶的 JWT token 是否已過期。
+    Check whether the JWT token for the specified account has expired.
 
-    如果無法確定過期時間，或無法載入帳戶資料，將安全地假設 token 已過期。
+    If the expiration time cannot be determined, or the account data cannot be loaded,
+    the token is assumed to be expired for safety.
+    A token with less than 5 minutes of remaining validity is also considered expired.
 
     Args:
-        account_name (str, optional): 要檢查的帳戶名稱。
-                                      如果為 None，使用預設帳戶。
-        config_path (Union[str, Path], optional): 配置檔案路徑。
-                                                 如果為 None，使用預設配置位置。
+        account_name (str, optional): The name of the account to check.
+            If None, the default account is used.
+        config_path (Union[str, Path], optional): The path to the configuration file.
+            If None, the default configuration location is used.
 
     Returns:
-        bool: 如果 token 已過期或無法確定過期時間則返回 True，否則返回 False。
+        bool: True if the token is expired, about to expire, or its expiration
+            time cannot be determined; otherwise, False.
     """
-    # 獲取帳戶 tokens
+    # Retrieve account tokens
     account_data = get_account_tokens(account_name, config_path)
     if not account_data:
-        # 如果無法獲取帳戶數據，安全地假設已過期
         return True
 
-    # 檢查是否有過期時間資訊
+    # Check if expiration time information is available
     if "jwt_expires_at" not in account_data:
-        # 如果沒有過期時間資訊，嘗試解析現有的 token
+        # If expiration time info is missing, attempt to parse the existing token
         if "jwt_token" in account_data:
             expires_at = parse_jwt_token_expiration(account_data["jwt_token"])
+
             if expires_at is None:
-                # 無法解析過期時間，安全地假設已過期
                 return True
-            # 使用解析出的過期時間繼續檢查
+
+            account_data["jwt_expires_at"] = expires_at
         else:
-            # 沒有 JWT token，安全地假設已過期
             return True
-    else:
-        expires_at = account_data["jwt_expires_at"]
 
-    # 比較過期時間與當前時間
+    expires_at = account_data["jwt_expires_at"]
+
+    # Check if the token has expired or has less than 5 minutes (300 seconds) remaining
     current_time = int(time.time())
-    return current_time >= expires_at
-
-
-def get_jwt_token_remaining_time(
-    account_name: str, config_path: Optional[Union[str, Path]] = None
-) -> Optional[int]:
-    """
-    獲取指定帳戶的 JWT token 剩餘有效時間（秒）。
-
-    Args:
-        account_name (str, optional): 要檢查的帳戶名稱。
-                                      如果為 None，使用預設帳戶。
-        config_path (Union[str, Path], optional): 配置檔案路徑。
-                                                 如果為 None，使用預設配置位置。
-
-    Returns:
-        Optional[int]: 剩餘秒數，如果已過期則返回 0，如果無法確定則返回 None。
-    """
-    # 獲取帳戶 tokens
-    account_data = get_account_tokens(account_name, config_path)
-    if not account_data:
-        # 如果無法獲取帳戶數據，返回 None
-        return None
-
-    # 檢查是否有過期時間資訊
-    if "jwt_expires_at" not in account_data:
-        # 如果沒有過期時間資訊，嘗試解析現有的 token
-        if "jwt_token" in account_data:
-            expires_at = parse_jwt_token_expiration(account_data["jwt_token"])
-            if expires_at is None:
-                # 無法解析過期時間
-                return None
-            # 使用解析出的過期時間繼續計算
-        else:
-            # 沒有 JWT token
-            return None
-    else:
-        expires_at = account_data["jwt_expires_at"]
-
-    # 計算剩餘時間
-    current_time = int(time.time())
-    remaining_time = expires_at - current_time
-
-    # 如果已過期，返回 0
-    return max(0, remaining_time)
+    return current_time >= expires_at or (expires_at - current_time) < 300
