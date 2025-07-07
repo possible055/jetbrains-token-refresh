@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Union
 
 from jetbrain_refresh_token.config import logger
-from jetbrain_refresh_token.constants import CONFIG_PATH
+from jetbrain_refresh_token.constants import resolve_config_path
 
 
 def load_config(config_path: Optional[Union[str, Path]] = None) -> Optional[Dict]:
@@ -22,11 +22,7 @@ def load_config(config_path: Optional[Union[str, Path]] = None) -> Optional[Dict
     Returns:
         Optional[Dict]: Configuration dictionary on success; otherwise, None.
     """
-    if config_path is None:
-        logger.info("Use the default configuration path")
-        config_path = CONFIG_PATH
-    elif isinstance(config_path, str):
-        config_path = Path(config_path)
+    config_path = resolve_config_path(config_path)
 
     try:
         with config_path.open('r', encoding='utf-8') as f:
@@ -106,6 +102,7 @@ def list_accounts(config_path: Optional[Union[str, Path]] = None) -> List[str]:
     Returns:
         List[str]: A list of account names.
     """
+    # 直接使用 load_config，它內部已使用 resolve_config_path
     config = load_config(config_path)
     if not config:
         return []
@@ -121,6 +118,7 @@ def show_accounts_data(config_path: Optional[Union[str, Path]] = None) -> None:
         config_path (Union[str, Path], optional): Path to the configuration file.
             If None, the default configuration location will be used.
     """
+    # 直接使用 load_config，它內部已使用 resolve_config_path
     config = load_config(config_path)
     if not config:
         return

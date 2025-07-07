@@ -9,8 +9,10 @@ from jetbrain_refresh_token.config.config import (
     load_config,
     parse_jwt_token_expiration,
 )
-from jetbrain_refresh_token.config.operate import backup_config_file, save_jwt_to_config
-from jetbrain_refresh_token.constants import CONFIG_PATH
+from jetbrain_refresh_token.config.operate import (
+    save_multiple_jwt_to_config,
+)
+from jetbrain_refresh_token.constants import resolve_config_path
 
 
 def refresh_account_jwt():
@@ -28,20 +30,16 @@ def refresh_accounts_jwt(config_path: Optional[Union[str, Path]] = None) -> bool
     Returns:
         bool: Returns True if refresh is successful or not needed; returns False on failure.
     """
+    config_path = resolve_config_path(config_path)
 
     config = load_config(config_path)
     if not config:
         return False
 
-    # If no configuration path is specified, use the default path
-    if config_path is None:
-        config_path = CONFIG_PATH
-    elif isinstance(config_path, str):
-        config_path = Path(config_path)
-
     # Keeping track of the refresh status for all accounts
     all_successful = True
     config_updated = False
+    updated_accounts = []  # Track which accounts are updated
 
     for account_name, account_data in config["accounts"].items():
         # A JWT token requires both an auth_token and a license_id
@@ -85,21 +83,18 @@ def refresh_accounts_jwt(config_path: Optional[Union[str, Path]] = None) -> bool
             logger.warning("Could not parse JWT expiration time for account: %s", account_name)
 
         config_updated = True
+        updated_accounts.append(account_name)  # Add account to the updated list
         logger.info("JWT token refresh successful for account: %s", account_name)
 
     # Save the configuration file if the JWT for any account has been updated
     if config_updated:
-        try:
-            logger.info("Backing up the configuration file before saving updates.")
-            backup_config_file(config_path)
+        # Use the new function to save multiple JWT tokens
+        save_result = save_multiple_jwt_to_config(
+            config=config, config_path=config_path, updated_accounts=updated_accounts
+        )
 
-            with open(config_path, 'w', encoding='utf-8') as file:
-                json.dump(config, file, indent=2)
-            logger.info("Successfully saved all updated JWT tokens to config file")
-
-        # pylint: disable=broad-exception-caught
-        except Exception as e:
-            logger.error("Failed to save config file: %s", e)
+        if not save_result:
+            logger.error("Failed to save updated JWT tokens to config file")
             all_successful = False
 
     return all_successful

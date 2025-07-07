@@ -4,8 +4,8 @@ from pathlib import Path
 from typing import Dict, Optional, Union
 
 from jetbrain_refresh_token.config import logger
-from jetbrain_refresh_token.config.config import load_config, parse_jwt_token_expiration
-from jetbrain_refresh_token.constants import CONFIG_BACKUP_PATH, CONFIG_PATH
+from jetbrain_refresh_token.config.config import parse_jwt_token_expiration
+from jetbrain_refresh_token.constants import CONFIG_BACKUP_PATH, resolve_config_path
 
 
 def backup_config_file(config_path: Optional[Union[str, Path]] = None) -> bool:
@@ -18,10 +18,7 @@ def backup_config_file(config_path: Optional[Union[str, Path]] = None) -> bool:
     Returns:
         bool: Returns True if the backup succeeds, False otherwise.
     """
-    if config_path is None:
-        config_path = CONFIG_PATH
-    elif isinstance(config_path, str):
-        config_path = Path(config_path)
+    config_path = resolve_config_path(config_path)
 
     if not config_path.exists():
         logger.warning(
@@ -57,10 +54,7 @@ def save_jwt_to_config(
     Returns:
         bool: True if successful, False otherwise.
     """
-    if config_path is None:
-        config_path = CONFIG_PATH
-    elif isinstance(config_path, str):
-        config_path = Path(config_path)
+    config_path = resolve_config_path(config_path)
 
     try:
         backup_result = backup_config_file(config_path)
@@ -99,6 +93,50 @@ def save_jwt_to_config(
             json.dump(config, file, indent=2)
 
         logger.info("Successfully saved tokens for account: %s", account_name)
+        return True
+    # pylint: disable=broad-exception-caught
+    except Exception as e:
+        logger.error("Failed to save account tokens: %s", e)
+        return False
+
+
+def save_multiple_jwt_to_config(
+    config: Dict,
+    config_path: Optional[Union[str, Path]] = None,
+    updated_accounts: Optional[list] = None,
+) -> bool:
+    """
+    Save or update multiple accounts' tokens in the configuration file.
+
+    Args:
+        config (Dict): Configuration dictionary that has been loaded.
+        config_path (Optional[Union[str, Path]], optional): Path to the configuration file.
+            If None, uses default config location.
+        updated_accounts (Optional[list], optional): List of account names that were updated.
+            If None, assumes all accounts in config need to be saved.
+
+    Returns:
+        bool: True if successful, False otherwise.
+    """
+    config_path = resolve_config_path(config_path)
+
+    try:
+        # Backup the configuration file before making changes
+        backup_result = backup_config_file(config_path)
+        if not backup_result:
+            logger.warning("Failed to back up config file, but will continue with save operation")
+
+        # Write back to file
+        with open(config_path, 'w', encoding='utf-8') as file:
+            json.dump(config, file, indent=2)
+
+        # Log which accounts were updated
+        if updated_accounts:
+            accounts_str = ", ".join(updated_accounts)
+            logger.info("Successfully saved tokens for accounts: %s", accounts_str)
+        else:
+            logger.info("Successfully saved all account tokens to config file")
+
         return True
     # pylint: disable=broad-exception-caught
     except Exception as e:
