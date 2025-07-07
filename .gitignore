@@ -24,11 +24,13 @@ venv*/
 
 # IDE editor settings
 .vscode/
+.kilocode/
 
 # OS / Logs / Env
 .DS_Store
 Thumbs.db
 *.log
+*.json
 .env
 
 # --- project-specific rules ---
