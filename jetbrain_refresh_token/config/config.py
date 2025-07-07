@@ -53,46 +53,46 @@ def load_config(config_path: Optional[Union[str, Path]] = None) -> Optional[Dict
     return config
 
 
-def get_account_tokens(
-    account_name: str, config_path: Optional[Union[str, Path]] = None
-) -> Optional[Dict]:
-    """
-    Retrieve tokens for a specified account from the configuration.
+# def get_account_tokens(
+#     account_name: str, config_path: Optional[Union[str, Path]] = None
+# ) -> Optional[Dict]:
+#     """
+#     Retrieve tokens for a specified account from the configuration.
 
-    If `account_name` is None, the default account will be used.
-    If `config_path` is None, the default config location is used.
+#     If `account_name` is None, the default account will be used.
+#     If `config_path` is None, the default config location is used.
 
-    Args:
-        account_name (str, optional): Account name to retrieve tokens for.
-            If None, uses the default account.
-        config_path (Union[str, Path], optional): Path to the configuration file.
-            If None, uses default config location.
+#     Args:
+#         account_name (str, optional): Account name to retrieve tokens for.
+#             If None, uses the default account.
+#         config_path (Union[str, Path], optional): Path to the configuration file.
+#             If None, uses default config location.
 
-    Returns:
-        Optional[Dict]: Dictionary of account tokens if available; otherwise None.
-    """
-    config = load_config(config_path)
-    if not config:
-        return None
+#     Returns:
+#         Optional[Dict]: Dictionary of account tokens if available; otherwise None.
+#     """
+#     config = load_config(config_path)
+#     if not config:
+#         return None
 
-    # Check if account exists
-    if account_name not in config["accounts"]:
-        logger.error("Account '%s' not found in configuration", account_name)
-        return None
+#     # Check if account exists
+#     if account_name not in config["accounts"]:
+#         logger.error("Account '%s' not found in configuration", account_name)
+#         return None
 
-    account_data = config["accounts"][account_name]
+#     account_data = config["accounts"][account_name]
 
-    # Validate required token fields
-    required_fields = ["access_token", "refresh_token", "jwt_token", "license_id"]
-    missing_fields = [field for field in required_fields if field not in account_data]
+#     # Validate required token fields
+#     required_fields = ["access_token", "refresh_token", "jwt_token", "license_id"]
+#     missing_fields = [field for field in required_fields if field not in account_data]
 
-    if missing_fields:
-        logger.error(
-            "Missing required fields in account configuration: %s", {', '.join(missing_fields)}
-        )
-        return None
+#     if missing_fields:
+#         logger.error(
+#             "Missing required fields in account configuration: %s", {', '.join(missing_fields)}
+#         )
+#         return None
 
-    return account_data
+#     return account_data
 
 
 def list_accounts(config_path: Optional[Union[str, Path]] = None) -> List[str]:
@@ -192,44 +192,36 @@ def parse_jwt_token_expiration(jwt_token: str) -> Optional[int]:
         return None
 
 
-def is_jwt_token_expired(account_name: str, config_path: Optional[Union[str, Path]] = None) -> bool:
+def is_jwt_expired(jwt: str) -> bool:
     """
     Check whether the JWT token for the specified account has expired.
 
-    If the expiration time cannot be determined, or the account data cannot be loaded,
-    the token is assumed to be expired for safety.
-    A token with less than 5 minutes of remaining validity is also considered expired.
-
     Args:
-        account_name (str, optional): The name of the account to check.
-            If None, the default account is used.
-        config_path (Union[str, Path], optional): The path to the configuration file.
-            If None, the default configuration location is used.
+        jwt (str): JWT string to check.
 
     Returns:
         bool: True if the token is expired, about to expire, or its expiration
             time cannot be determined; otherwise, False.
     """
-    # Retrieve account tokens
-    account_data = get_account_tokens(account_name, config_path)
-    if not account_data:
+
+    expires_at = parse_jwt_token_expiration(jwt)
+    if expires_at is None:
         return True
-
-    # Check if expiration time information is available
-    if "jwt_expires_at" not in account_data:
-        # If expiration time info is missing, attempt to parse the existing token
-        if "jwt_token" in account_data:
-            expires_at = parse_jwt_token_expiration(account_data["jwt_token"])
-
-            if expires_at is None:
-                return True
-
-            account_data["jwt_expires_at"] = expires_at
-        else:
-            return True
-
-    expires_at = account_data["jwt_expires_at"]
 
     # Check if the token has expired or has less than 5 minutes (300 seconds) remaining
     current_time = int(time.time())
     return current_time >= expires_at or (expires_at - current_time) < 300
+
+
+def is_id_token_expired(expired_at: int) -> bool:
+    """
+    Check whether the ID token has expired.
+
+    Args:
+        expired_at (int): Expiration time as a UNIX timestamp.
+
+    Returns:
+        bool: True if the token is expired, False otherwise.
+    """
+    current_time = int(time.time())
+    return current_time >= expired_at or (expired_at - current_time) < 300

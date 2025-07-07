@@ -1,177 +1,81 @@
-import json
-from typing import Any, Dict, Optional
+from pathlib import Path
+from typing import Optional, Union
 
-import requests
-from fake_useragent import UserAgent
-from requests.adapters import HTTPAdapter
-from urllib3.util.retry import Retry
-
-from jetbrain_refresh_token.logging_setup import get_logger
-
-OAUTH_URL = "https://oauth.account.jetbrains.com/oauth2/token"
-JWT_AUTH_URL = "https://api.jetbrains.ai/auth/jetbrains-jwt/provide-access/license/v2"
-CLIENT_ID = "ide"
+from jetbrain_refresh_token.api.scheme import refresh_jwt
+from jetbrain_refresh_token.config import logger
+from jetbrain_refresh_token.config.config import (
+    is_jwt_expired,
+    load_config,
+)
+from jetbrain_refresh_token.config.operate import save_jwt_to_config
+from jetbrain_refresh_token.constants import CONFIG_PATH
 
 
-logger = get_logger("api.refresh_token")
+def refresh_account_jwt():
+    pass
 
 
-def requests_post(
-    url: str, data: Any, headers: Dict[str, str], timeout: int = 10
-) -> Optional[requests.Response]:
+def refresh_accounts_jwt(config_path: Optional[Union[str, Path]] = None) -> bool:
     """
-    Send an HTTP POST request with a retry strategy.
+    檢查所有帳號並在需要時刷新其 JWT token，並將新的 token 保存到配置文件中。
 
     Args:
-        url (str): Target URL.
-        data (Any): Request payload.
-        headers (Dict[str, str]): HTTP request headers.
-        timeout (int, optional): Request timeout in seconds. Defaults to 10.
+        config_path (Optional[Union[str, Path]], optional): 配置文件路徑。默認為 None，使用系統預設路徑。
 
     Returns:
-        Optional[requests.Response]: The Response object on success; otherwise, None.
+        bool: 成功刷新或不需要刷新返回 True，失敗返回 False
     """
-    # Configuring retry strategy
-    retry_strategy = Retry(
-        total=3,
-        backoff_factor=2,
-        status_forcelist=[429, 500, 502, 503, 504],
-        allowed_methods=["POST"],
-    )
+    config = load_config(config_path)
+    if not config:
+        return False
 
-    session = requests.Session()
-    session.mount("https://", HTTPAdapter(max_retries=retry_strategy))
+    # If no configuration path is specified, use the default path
+    if config_path is None:
+        config_path = CONFIG_PATH
+    elif isinstance(config_path, str):
+        config_path = Path(config_path)
 
-    try:
-        logger.info("Sending request with up to 3 retries configured.")
-        response = session.post(
-            url,
-            data=data,
-            headers=headers,
-            timeout=timeout,
+    all_successful = True  # Keeping track of the refresh status for all accounts
+
+    for account_name, account_data in config["accounts"].items():
+        # A JWT token requires both an auth_token and a license_id
+        auth_token = account_data.get("auth_token", "N/A")
+        license_id = account_data.get("license_id", "N/A")
+
+        old_jwt = account_data.get("jwt_token", "N/A")
+
+        if not is_jwt_expired(old_jwt):
+            logger.info(
+                "JWT token for account '%s' is still valid and does not require renewal.",
+                account_name,
+            )
+            continue
+
+        logger.info(
+            "The JWT token for account '%s' is nearing expiration. Initiating refresh.",
+            account_name,
         )
-        return response
-    except requests.RequestException as e:
-        logger.error("Error persists after multiple retries: %s", e)
-        return None
 
+        new_jwt = refresh_jwt(auth_token, license_id)
+        if not new_jwt:
+            logger.error(
+                "Failed to refresh the JWT token. "
+                "Please verify that the auth token and license ID are correct."
+            )
+            all_successful = False
+            continue
 
-def refresh_access_token(refresh_token: str) -> Optional[Dict[str, str]]:
-    """
-    Obtain new JetBrains OAuth tokens using a refresh token.
+        tokens = {"jwt_token": new_jwt}
 
-    Args:
-        refresh_token (str): The refresh token used for token renewal
+        if old_jwt != "N/A":
+            tokens["jwt_token_previous"] = old_jwt
 
-    Returns:
-        Optional[Dict[str, str]]:
-            A dictionary containing "access_token", "id_token", and "refresh_token" on success;
-            otherwise, None.
+        # Save JWT token
+        if not save_jwt_to_config(account_name, tokens, config, config_path):
+            logger.error("Failed to save updated JWT token for account: %s", account_name)
+            all_successful = False
+            continue
 
-    Raises:
-        requests.RequestException: When HTTP requests fail after multiple retry attempts
-    """
-    ua = UserAgent(browsers=['Edge', 'Chrome', 'Firefox'])
-    random_ua = ua.random
+        logger.info("JWT token refresh successful for account: %s", account_name)
 
-    logger.info("Refreshing access token with refresh token.")
-    logger.debug("User-Agent: %s", random_ua)
-
-    data = {
-        "grant_type": "refresh_token",
-        "refresh_token": refresh_token,
-        "client_id": CLIENT_ID,
-    }
-    headers = {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Accept": "application/json",
-        "User-Agent": random_ua,
-    }
-
-    response = requests_post(OAUTH_URL, data, headers, 10)
-    if not response:
-        logger.error("Request failed: no response.")
-        return None
-
-    if response.status_code == 200:
-        try:
-            token_data = response.json()
-
-            if not all(key in token_data for key in ["access_token", "id_token", "refresh_token"]):
-                logger.error("Required token information is missing from the response.")
-                return None
-
-            access_token = token_data["access_token"]
-            id_token = token_data["id_token"]
-            refresh_token = token_data["refresh_token"]
-
-            logger.info("Successfully obtained a new access token.")
-
-            if access_token:
-                logger.debug("access_token: %s***", access_token[:12])
-            if id_token:
-                logger.debug("id_token: %s***", id_token[:12])
-            if refresh_token:
-                logger.debug("refresh_token: %s***", refresh_token[:12])
-
-            return {
-                "access_token": access_token,
-                "id_token": id_token,
-                "refresh_token": refresh_token,
-            }
-        except (ValueError, json.JSONDecodeError) as e:
-            logger.error("Failed to parse JSON: %s", e)
-            return None
-        except KeyError as e:
-            logger.error("Required token field: %s", e)
-            return None
-
-    logger.error(
-        "Request failed with status code: %s. Response: %s", response.status_code, response.text
-    )
-    return None
-
-
-def refresh_jwt(access_token: str, license_id: str) -> Optional[Dict]:
-    """
-    Refreshes the JetBrains JWT token.
-
-    Args:
-        license_id (str): JetBrains license ID.
-        access_token (str): Access token used for authorization.
-
-    Returns:
-        Optional[Dict]: JSON data containing the refreshed JWT on success; otherwise, None.
-    """
-    payload = {"licenseId": license_id}
-    headers = {
-        'Accept': "*/*",
-        'Content-Type': "application/json",
-        'Accept-Charset': "UTF-8",
-        'authorization': f"Bearer {access_token}",
-        'User-Agent': "ktor-client",
-    }
-
-    response = requests_post(JWT_AUTH_URL, headers=headers, data=json.dumps(payload), timeout=10)
-    if not response:
-        logger.error("Request failed: no response.")
-        return None
-
-    if response.status_code == 200:
-        try:
-            data = response.json()
-        except (ValueError, json.JSONDecodeError) as e:
-            logger.error("Failed to parse JSON: %s", e)
-            return None
-
-        if data['state'] == "PAID":
-            jwt_token = data['token']
-            return jwt_token
-
-        logger.error("License: Non-Paid Version")
-        return None
-
-    logger.error(
-        "Request failed with status code: %s. Response: %s", response.status_code, response.text
-    )
-    return None
+    return all_successful
