@@ -1,3 +1,4 @@
+import json
 from pathlib import Path
 from typing import Optional, Union
 
@@ -6,8 +7,9 @@ from jetbrain_refresh_token.config import logger
 from jetbrain_refresh_token.config.config import (
     is_jwt_expired,
     load_config,
+    parse_jwt_token_expiration,
 )
-from jetbrain_refresh_token.config.operate import save_jwt_to_config
+from jetbrain_refresh_token.config.operate import backup_config_file, save_jwt_to_config
 from jetbrain_refresh_token.constants import CONFIG_PATH
 
 
@@ -17,14 +19,16 @@ def refresh_account_jwt():
 
 def refresh_accounts_jwt(config_path: Optional[Union[str, Path]] = None) -> bool:
     """
-    檢查所有帳號並在需要時刷新其 JWT token，並將新的 token 保存到配置文件中。
+    Refreshes JWT tokens for all accounts if needed.
 
     Args:
-        config_path (Optional[Union[str, Path]], optional): 配置文件路徑。默認為 None，使用系統預設路徑。
+        config_path (Optional[Union[str, Path]], optional): Path to the configuration file.
+            Defaults to None, using the system default path.
 
     Returns:
-        bool: 成功刷新或不需要刷新返回 True，失敗返回 False
+        bool: Returns True if refresh is successful or not needed; returns False on failure.
     """
+
     config = load_config(config_path)
     if not config:
         return False
@@ -35,11 +39,13 @@ def refresh_accounts_jwt(config_path: Optional[Union[str, Path]] = None) -> bool
     elif isinstance(config_path, str):
         config_path = Path(config_path)
 
-    all_successful = True  # Keeping track of the refresh status for all accounts
+    # Keeping track of the refresh status for all accounts
+    all_successful = True
+    config_updated = False
 
     for account_name, account_data in config["accounts"].items():
         # A JWT token requires both an auth_token and a license_id
-        auth_token = account_data.get("auth_token", "N/A")
+        id_token = account_data.get("id_token", "N/A")
         license_id = account_data.get("license_id", "N/A")
 
         old_jwt = account_data.get("jwt_token", "N/A")
@@ -56,7 +62,7 @@ def refresh_accounts_jwt(config_path: Optional[Union[str, Path]] = None) -> bool
             account_name,
         )
 
-        new_jwt = refresh_jwt(auth_token, license_id)
+        new_jwt = refresh_jwt(id_token, license_id)
         if not new_jwt:
             logger.error(
                 "Failed to refresh the JWT token. "
@@ -65,17 +71,35 @@ def refresh_accounts_jwt(config_path: Optional[Union[str, Path]] = None) -> bool
             all_successful = False
             continue
 
-        tokens = {"jwt_token": new_jwt}
-
         if old_jwt != "N/A":
-            tokens["jwt_token_previous"] = old_jwt
+            config["accounts"][account_name]["jwt_token_previous"] = old_jwt
 
-        # Save JWT token
-        if not save_jwt_to_config(account_name, tokens, config, config_path):
-            logger.error("Failed to save updated JWT token for account: %s", account_name)
-            all_successful = False
-            continue
+        config["accounts"][account_name]["jwt_token"] = new_jwt
 
+        # Parse and save the JWT expiration time
+        expires_at = parse_jwt_token_expiration(str(new_jwt))
+        if expires_at is not None:
+            config["accounts"][account_name]["jwt_expired"] = expires_at
+            logger.info("JWT token expiration time set for account: %s", account_name)
+        else:
+            logger.warning("Could not parse JWT expiration time for account: %s", account_name)
+
+        config_updated = True
         logger.info("JWT token refresh successful for account: %s", account_name)
+
+    # Save the configuration file if the JWT for any account has been updated
+    if config_updated:
+        try:
+            logger.info("Backing up the configuration file before saving updates.")
+            backup_config_file(config_path)
+
+            with open(config_path, 'w', encoding='utf-8') as file:
+                json.dump(config, file, indent=2)
+            logger.info("Successfully saved all updated JWT tokens to config file")
+
+        # pylint: disable=broad-exception-caught
+        except Exception as e:
+            logger.error("Failed to save config file: %s", e)
+            all_successful = False
 
     return all_successful

@@ -1,10 +1,41 @@
 import json
+import shutil
 from pathlib import Path
 from typing import Dict, Optional, Union
 
 from jetbrain_refresh_token.config import logger
 from jetbrain_refresh_token.config.config import load_config, parse_jwt_token_expiration
-from jetbrain_refresh_token.constants import CONFIG_PATH
+from jetbrain_refresh_token.constants import CONFIG_BACKUP_PATH, CONFIG_PATH
+
+
+def backup_config_file(config_path: Optional[Union[str, Path]] = None) -> bool:
+    """
+    Back up the configuration file to the default backup location.
+
+    Args:
+        config_path (Union[str, Path]): Path to the configuration file to be backed up.
+
+    Returns:
+        bool: Returns True if the backup succeeds, False otherwise.
+    """
+    if config_path is None:
+        config_path = CONFIG_PATH
+    elif isinstance(config_path, str):
+        config_path = Path(config_path)
+
+    if not config_path.exists():
+        logger.warning(
+            "Failed to back up the configuration file; file does not exist: %s", config_path
+        )
+        return False
+
+    try:
+        shutil.copy2(config_path, CONFIG_BACKUP_PATH)
+        logger.info("Successfully backed up the configuration file to: %s", CONFIG_BACKUP_PATH)
+        return True
+    except (PermissionError, OSError) as e:
+        logger.error("File system error occurred while backing up the configuration file: %s", e)
+        return False
 
 
 def save_jwt_to_config(
@@ -26,31 +57,28 @@ def save_jwt_to_config(
     Returns:
         bool: True if successful, False otherwise.
     """
-    # 確保配置有效
-    if config is None:
-        logger.error("無效的配置物件")
-        return False
-
-    # 確保配置路徑有效
     if config_path is None:
         config_path = CONFIG_PATH
     elif isinstance(config_path, str):
         config_path = Path(config_path)
 
     try:
-        # 處理舊的 JWT token 和解析過期時間
+        backup_result = backup_config_file(config_path)
+        if not backup_result:
+            logger.warning("Failed to back up config file, but will continue with save operation")
+
+        # Process the old JWT token and parse the expiration time
         if account_name in config["accounts"] and "jwt_token" in tokens:
             existing_account = config["accounts"][account_name]
-            # 如果已有 JWT token，始終將其保存為 jwt_token_previous
+            # Save the original JWT token to the 'jwt_token_previous' field
             if "jwt_token" in existing_account:
                 tokens["jwt_token_previous"] = existing_account["jwt_token"]
                 logger.info("Previous JWT token saved for account: %s", account_name)
             else:
-                # 如果沒有舊的 JWT token，設置 jwt_token_previous 為空字串
+                # If there is no old JWT token, set 'jwt_token_previous' to an empty string
                 tokens["jwt_token_previous"] = ""
                 logger.info("No previous JWT token found for account: %s", account_name)
 
-            # 解析 JWT token 過期時間
             if "jwt_token" in tokens:
                 expires_at = parse_jwt_token_expiration(str(tokens["jwt_token"]))
                 if expires_at is not None:
@@ -61,14 +89,10 @@ def save_jwt_to_config(
                         "Could not parse JWT expiration time for account: %s", account_name
                     )
 
-        # Update account information - 只更新特定欄位，而非完全覆蓋
         if account_name in config["accounts"]:
-            # 更新現有帳戶的特定欄位，保留其他原有資料
+            # Update existing account with new tokens and expiration time
             for key, value in tokens.items():
                 config["accounts"][account_name][key] = value
-        else:
-            # 如果帳戶不存在，則創建新帳戶
-            config["accounts"][account_name] = tokens
 
         # Write back to file
         with open(config_path, 'w', encoding='utf-8') as file:
