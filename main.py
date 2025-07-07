@@ -103,5 +103,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-# 如需手動測試，取消以下行的註釋
-# test_refresh()
+test_refresh()

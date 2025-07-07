@@ -49,48 +49,6 @@ def load_config(config_path: Optional[Union[str, Path]] = None) -> Optional[Dict
     return config
 
 
-# def get_account_tokens(
-#     account_name: str, config_path: Optional[Union[str, Path]] = None
-# ) -> Optional[Dict]:
-#     """
-#     Retrieve tokens for a specified account from the configuration.
-
-#     If `account_name` is None, the default account will be used.
-#     If `config_path` is None, the default config location is used.
-
-#     Args:
-#         account_name (str, optional): Account name to retrieve tokens for.
-#             If None, uses the default account.
-#         config_path (Union[str, Path], optional): Path to the configuration file.
-#             If None, uses default config location.
-
-#     Returns:
-#         Optional[Dict]: Dictionary of account tokens if available; otherwise None.
-#     """
-#     config = load_config(config_path)
-#     if not config:
-#         return None
-
-#     # Check if account exists
-#     if account_name not in config["accounts"]:
-#         logger.error("Account '%s' not found in configuration", account_name)
-#         return None
-
-#     account_data = config["accounts"][account_name]
-
-#     # Validate required token fields
-#     required_fields = ["access_token", "refresh_token", "jwt_token", "license_id"]
-#     missing_fields = [field for field in required_fields if field not in account_data]
-
-#     if missing_fields:
-#         logger.error(
-#             "Missing required fields in account configuration: %s", {', '.join(missing_fields)}
-#         )
-#         return None
-
-#     return account_data
-
-
 def list_accounts(config_path: Optional[Union[str, Path]] = None) -> List[str]:
     """
     List all accounts in the configuration.

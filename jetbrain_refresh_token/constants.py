@@ -1,10 +1,9 @@
+import logging
 from pathlib import Path
 from typing import Optional, Union
 
-from jetbrain_refresh_token.logging_setup import get_logger
-
-# Initialize logger
-logger = get_logger("constants")
+# 使用標準 logging 而不是從 logging_setup 導入
+logger = logging.getLogger("jetbrain_refresh_token.constants")
 
 # Define paths
 BASE_PATH = Path(__file__).resolve().parent

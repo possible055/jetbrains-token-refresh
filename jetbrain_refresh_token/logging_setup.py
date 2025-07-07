@@ -1,7 +1,19 @@
 import logging
 from pathlib import Path
 
-from jetbrain_refresh_token.constants import LOG_PATH
+# 移除對 constants 的依賴，直接在這裡定義日誌路徑
+def get_log_path():
+    """
+    獲取日誌文件路徑。
+    
+    Returns:
+        Path: 日誌文件目錄路徑
+    """
+    base_path = Path(__file__).resolve().parent
+    project_root = base_path.parent
+    log_path = project_root / "logs"
+    log_path.mkdir(parents=True, exist_ok=True)
+    return log_path
 
 
 def setup_logging():
@@ -11,8 +23,7 @@ def setup_logging():
     Returns:
         logging.Logger: Root logger instance
     """
-
-    Path(LOG_PATH).mkdir(parents=True, exist_ok=True)
+    log_path = get_log_path()
 
     # Configure root logger
     root_logger = logging.getLogger("jetbrain_refresh_token")
@@ -22,7 +33,7 @@ def setup_logging():
     formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 
     # File handler
-    file_handler = logging.FileHandler(f"{LOG_PATH}/jetbrain_api.log")
+    file_handler = logging.FileHandler(f"{log_path}/jetbrain_api.log")
     file_handler.setFormatter(formatter)
 
     # Console handler
