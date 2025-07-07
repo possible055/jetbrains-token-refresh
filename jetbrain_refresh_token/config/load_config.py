@@ -1,11 +1,12 @@
 import base64
 import json
 import time
+from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union
 
 from jetbrain_refresh_token.config import logger
-from jetbrain_refresh_token.constants import BASE_PATH, CONFIG_PATH
+from jetbrain_refresh_token.constants import CONFIG_PATH
 
 
 def load_config(config_path: Optional[Union[str, Path]] = None) -> Optional[Dict]:
@@ -22,7 +23,8 @@ def load_config(config_path: Optional[Union[str, Path]] = None) -> Optional[Dict
         Optional[Dict]: Configuration dictionary on success; otherwise, None.
     """
     if config_path is None:
-        config_path = BASE_PATH / "config" / "config.json"
+        logger.info("Use the default configuration path")
+        config_path = CONFIG_PATH
     elif isinstance(config_path, str):
         config_path = Path(config_path)
 
@@ -36,7 +38,6 @@ def load_config(config_path: Optional[Union[str, Path]] = None) -> Optional[Dict
         logger.error("Failed to parse configuration file: %s", e)
         return None
     except OSError as e:
-        # 例如：讀檔過程中 permission 被拒
         logger.error("OS error accessing configuration: %s", e)
         return None
 
@@ -94,15 +95,16 @@ def get_account_tokens(
     return account_data
 
 
-def list_accounts(config_path: Optional[Union[str, Path]] = None) -> List[Tuple[str, bool]]:
+def list_accounts(config_path: Optional[Union[str, Path]] = None) -> List[str]:
     """
-    List all accounts in the configuration, indicating which one is the default.
+    List all accounts in the configuration.
 
     Args:
         config_path (Union[str, Path], optional): Path to the configuration file.
+            If None, uses default config location.
 
     Returns:
-        List[Tuple[str, bool]]: A list of (account_name, is_default) tuples.
+        List[str]: A list of account names.
     """
     config = load_config(config_path)
     if not config:
@@ -111,37 +113,68 @@ def list_accounts(config_path: Optional[Union[str, Path]] = None) -> List[Tuple[
     return list(config["accounts"].keys())
 
 
+def show_accounts_data(config_path: Optional[Union[str, Path]] = None) -> None:
+    """
+    Print all account data from the configuration file in a bullet-point format.
+
+    Args:
+        config_path (Union[str, Path], optional): Path to the configuration file.
+            If None, the default configuration location will be used.
+    """
+    config = load_config(config_path)
+    if not config:
+        return
+
+    accounts = config["accounts"]
+    fields_order = [
+        "license_id",
+        "refresh_token",
+        "jwt_token",
+        "created_time",
+        "jwt_expired",
+    ]
+    timestamp_fields = ["created_time", "jwt_expired"]
+
+    for account_name, account_data in accounts.items():
+        print(f"Account: {account_name}")
+        for field in fields_order:
+            if field in account_data:
+                value = account_data[field]
+                if field in timestamp_fields and isinstance(value, (int, float)):
+                    date_time = datetime.fromtimestamp(value)
+                    print(f"{field}: {date_time.strftime('%Y-%m-%d %H:%M:%S')}")
+                elif isinstance(value, str) and len(value) > 40:
+                    print(f"{field}: {value[:40]}...")
+                else:
+                    print(f"{field}: {value}")
+        print("-" * 50)
+
+
 def save_account_tokens(
     account_name: str,
     tokens: Dict,
-    config_path: Optional[Union[str, Path]] = CONFIG_PATH,
+    config_path: Optional[Union[str, Path]] = None,
 ) -> bool:
     """
     Save or update account tokens in the configuration file.
 
     Args:
         account_name (str): Name of the account to save.
-            tokens (Dict): Dictionary containing token information.
+        tokens (Dict): Dictionary containing token information.
         config_path (Union[str, Path], optional): Path to the configuration file.
             If None, uses default config location.
-        set_as_default (bool, optional): Whether to set this account as default. Defaults to False.
 
     Returns:
         bool: True if successful, False otherwise.
     """
+    config = load_config(config_path)
+    if config is None:
+        return False
+
     if config_path is None:
-        config_path = BASE_PATH / "config" / "config.json"
-    elif isinstance(config_path, str):
-        config_path = Path(config_path)
+        config_path = CONFIG_PATH
 
     try:
-        if config_path.exists():
-            with open(config_path, 'r', encoding='utf-8') as file:
-                config: Dict[str, Any] = json.load(file)
-        else:
-            config: Dict[str, Any] = {"accounts": {}}
-            config_path.parent.mkdir(parents=True, exist_ok=True)
-
         if "accounts" not in config:
             config["accounts"] = {}
 
@@ -166,10 +199,10 @@ def save_account_tokens(
                 expires_at = parse_jwt_token_expiration(tokens["jwt_token"])
                 if expires_at is not None:
                     tokens["jwt_expires_at"] = expires_at
-                    logger.info(f"JWT token expiration time set for account: {account_name}")
+                    logger.info("JWT token expiration time set for account: %s", account_name)
                 else:
                     logger.warning(
-                        f"Could not parse JWT expiration time for account: {account_name}"
+                        "Could not parse JWT expiration time for account: %s", account_name
                     )
 
         # Update account information
