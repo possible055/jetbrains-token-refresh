@@ -1,19 +1,11 @@
 import logging
-from pathlib import Path
 
-# 移除對 constants 的依賴，直接在這裡定義日誌路徑
+from .constants import LOG_PATH
+
+
 def get_log_path():
-    """
-    獲取日誌文件路徑。
-    
-    Returns:
-        Path: 日誌文件目錄路徑
-    """
-    base_path = Path(__file__).resolve().parent
-    project_root = base_path.parent
-    log_path = project_root / "logs"
-    log_path.mkdir(parents=True, exist_ok=True)
-    return log_path
+    LOG_PATH.mkdir(parents=True, exist_ok=True)
+    return LOG_PATH
 
 
 def setup_logging():
