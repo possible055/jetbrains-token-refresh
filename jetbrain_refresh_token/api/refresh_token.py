@@ -14,13 +14,17 @@ from jetbrain_refresh_token.config.operate import (
 from jetbrain_refresh_token.config.utils import is_jwt_expired
 
 
-def refresh_expired_access_tokens(config_path: Optional[Union[str, Path]] = None) -> bool:
+def refresh_expired_access_tokens(
+    config_path: Optional[Union[str, Path]] = None, forced: bool = False
+) -> bool:
     """
     Refreshes JWT for all accounts if needed.
 
     Args:
         config_path (Optional[Union[str, Path]], optional): Path to the configuration file.
             Defaults to None, using the system default path.
+        forced (bool, optional): If True, forces refresh of all access tokens regardless of
+            expiration status. Defaults to False.
 
     Returns:
         bool: Returns True if refresh is successful or not needed; returns False on failure.
@@ -43,17 +47,23 @@ def refresh_expired_access_tokens(config_path: Optional[Union[str, Path]] = None
 
         current_access_token = account_data.get("access_token", "N/A")
 
-        if not is_jwt_expired(current_access_token):
+        if not forced and not is_jwt_expired(current_access_token):
             logger.info(
                 "Access token for account '%s' is still valid and does not require renewal.",
                 account_name,
             )
             continue
 
-        logger.info(
-            "Access token for account '%s' is nearing expiration. Initiating refresh.",
-            account_name,
-        )
+        if forced:
+            logger.info(
+                "Forced refresh mode: Initiating refresh for account '%s'.",
+                account_name,
+            )
+        else:
+            logger.info(
+                "Access token for account '%s' is nearing expiration. Initiating refresh.",
+                account_name,
+            )
 
         new_access_token = request_access_token(id_token, license_id)
         if not new_access_token:
