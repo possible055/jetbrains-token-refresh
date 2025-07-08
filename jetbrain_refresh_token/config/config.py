@@ -1,11 +1,10 @@
 import base64
 import json
-from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, Optional, Union
 
 from jetbrain_refresh_token.config import logger
-from jetbrain_refresh_token.constants import CONFIG_PATH
+from jetbrain_refresh_token.constants import CONFIG_PATH, SCHEMA_PATH
 
 
 def resolve_config_path(config_path: Optional[Union[str, Path]] = None) -> Path:
@@ -71,25 +70,6 @@ def load_config(config_path: Optional[Union[str, Path]] = None) -> Optional[Dict
     return config
 
 
-def list_accounts(config_path: Optional[Union[str, Path]] = None) -> List[str]:
-    """
-    List all accounts in the configuration.
-
-    Args:
-        config_path (Union[str, Path], optional): Path to the configuration file.
-            If None, uses default config location.
-
-    Returns:
-        List[str]: A list of account names.
-    """
-    # 直接使用 load_config，它內部已使用 resolve_config_path
-    config = load_config(config_path)
-    if not config:
-        return []
-
-    return list(config["accounts"].keys())
-
-
 def load_config_schema() -> Optional[Dict]:
     """
     Load configuration schema from JSON file.
@@ -97,7 +77,7 @@ def load_config_schema() -> Optional[Dict]:
     Returns:
         Optional[Dict]: Schema dictionary on success; otherwise, None.
     """
-    schema_path = Path(__file__).parent / "config_schema.json"
+    schema_path = SCHEMA_PATH
 
     try:
         with schema_path.open('r', encoding='utf-8') as f:
@@ -111,44 +91,6 @@ def load_config_schema() -> Optional[Dict]:
     except OSError as e:
         logger.error("OS error accessing configuration schema: %s", e)
         return None
-
-
-def show_accounts_data(config_path: Optional[Union[str, Path]] = None) -> None:
-    """
-    Print all account data from the configuration file in a bullet-point format.
-
-    Args:
-        config_path (Union[str, Path], optional): Path to the configuration file.
-            If None, the default configuration location will be used.
-    """
-    # 直接使用 load_config，它內部已使用 resolve_config_path
-    config = load_config(config_path)
-    if not config:
-        return
-
-    accounts = config["accounts"]
-    fields_order = [
-        "license_id",
-        "refresh_token",
-        "jwt_token",
-        "created_time",
-        "jwt_expired",
-    ]
-    timestamp_fields = ["created_time", "jwt_expired"]
-
-    for account_name, account_data in accounts.items():
-        print(f"Account: {account_name}")
-        for field in fields_order:
-            if field in account_data:
-                value = account_data[field]
-                if field in timestamp_fields and isinstance(value, (int, float)):
-                    date_time = datetime.fromtimestamp(value)
-                    print(f"{field}: {date_time.strftime('%Y-%m-%d %H:%M:%S')}")
-                elif isinstance(value, str) and len(value) > 40:
-                    print(f"{field}: {value[:40]}...")
-                else:
-                    print(f"{field}: {value}")
-        print("-" * 50)
 
 
 def parse_jwt_expiration(token: str) -> Optional[int]:

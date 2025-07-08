@@ -56,7 +56,7 @@ def requests_post(
         return None
 
 
-def refresh_access_token(refresh_token: str) -> Optional[Dict[str, str]]:
+def request_id_token(refresh_token: str) -> Optional[Dict[str, str]]:
     """
     Obtain new JetBrains OAuth tokens using a refresh token.
 
@@ -132,13 +132,13 @@ def refresh_access_token(refresh_token: str) -> Optional[Dict[str, str]]:
     return None
 
 
-def refresh_jwt(access_token: str, license_id: str) -> Optional[Dict]:
+def request_access_token(id_token: str, license_id: str) -> Optional[Dict]:
     """
     Refreshes the JetBrains JWT token.
 
     Args:
         license_id (str): JetBrains license ID.
-        access_token (str): Access token used for authorization.
+        id_token (str): Access token used for authorization.
 
     Returns:
         Optional[Dict]: JSON data containing the refreshed JWT on success; otherwise, None.
@@ -148,7 +148,7 @@ def refresh_jwt(access_token: str, license_id: str) -> Optional[Dict]:
         'Accept': "*/*",
         'Content-Type': "application/json",
         'Accept-Charset': "UTF-8",
-        'authorization': f"Bearer {access_token}",
+        'authorization': f"Bearer {id_token}",
         'User-Agent': "ktor-client",
     }
 
@@ -165,8 +165,8 @@ def refresh_jwt(access_token: str, license_id: str) -> Optional[Dict]:
             return None
 
         if data['state'] == "PAID":
-            jwt_token = data['token']
-            return jwt_token
+            access_token = data['token']
+            return access_token
 
         logger.error("License: Non-Paid Version")
         return None

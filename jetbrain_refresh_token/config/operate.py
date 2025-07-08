@@ -1,14 +1,15 @@
 import json
 import shutil
+from datetime import datetime
 from pathlib import Path
-from typing import Dict, Optional, Union
+from typing import Dict, List, Optional, Union
 
 from jsonschema import ValidationError, validate
 
 from jetbrain_refresh_token.config import logger
 from jetbrain_refresh_token.config.config import (
+    load_config,
     load_config_schema,
-    parse_jwt_expiration,
     resolve_config_path,
 )
 from jetbrain_refresh_token.config.utils import is_vaild_jwt_format
@@ -69,19 +70,19 @@ def validate_config_format(config: Dict) -> bool:
     # Additional JWT format validation (only what schema cannot handle)
     for account_name, account_data in config["accounts"].items():
         # Validate JWT fields that require format checking
-        jwt_fields = ["id_token", "jwt_token", "jwt_token_previous"]
+        jwt_fields = ["id_token", "access_token", "previous_access_token"]
         for field in jwt_fields:
             if field in account_data:
                 value = account_data[field]
-                # jwt_token_previous can be empty string
-                if field == "jwt_token_previous":
+                # previous_access_token can be empty string
+                if field == "previous_access_token":
                     if value and not is_vaild_jwt_format(value):
                         logger.error(
                             "Account '%s' field '%s' has invalid JWT format", account_name, field
                         )
                         return False
                 else:
-                    # id_token and jwt_token must be valid JWT
+                    # id_token and access_token must be valid JWT
                     if not value or not is_vaild_jwt_format(value):
                         logger.error(
                             "Account '%s' field '%s' has invalid JWT format", account_name, field
@@ -89,11 +90,11 @@ def validate_config_format(config: Dict) -> bool:
                         return False
 
         # Check for required expiration fields (one of them should exist)
-        if not account_data.get("access_token_expired") and not account_data.get(
+        if not account_data.get("access_token_expires_at") and not account_data.get(
             "auth_token_expired"
         ):
             logger.error(
-                "Account '%s' must have either 'access_token_expired' or 'auth_token_expired' field",
+                "Account '%s' must have either 'access_token_expires_at' field",
                 account_name,
             )
             return False
@@ -101,72 +102,64 @@ def validate_config_format(config: Dict) -> bool:
     return True
 
 
-def save_jwt_to_config(
-    account_name: str,
-    tokens: Dict,
-    config: Dict,
-    config_path: Optional[Union[str, Path]] = None,
-) -> bool:
+def list_accounts(config_path: Optional[Union[str, Path]] = None) -> List[str]:
     """
-    Save or update account tokens in the configuration file.
+    List all accounts in the configuration.
 
     Args:
-        account_name (str): Name of the account to save.
-        tokens (Dict): Dictionary containing token information.
-        config (Dict): Configuration dictionary that has been loaded.
-        config_path (Optional[Union[str, Path]], optional): Path to the configuration file.
+        config_path (Union[str, Path], optional): Path to the configuration file.
             If None, uses default config location.
 
     Returns:
-        bool: True if successful, False otherwise.
+        List[str]: A list of account names.
     """
-    config_path = resolve_config_path(config_path)
+    # 直接使用 load_config，它內部已使用 resolve_config_path
+    config = load_config(config_path)
+    if not config:
+        return []
 
-    try:
-        backup_result = backup_config_file(config_path)
-        if not backup_result:
-            logger.warning("Failed to back up config file, but will continue with save operation")
+    return list(config["accounts"].keys())
 
-        # Process the old JWT token and parse the expiration time
-        if account_name in config["accounts"] and "jwt_token" in tokens:
-            existing_account = config["accounts"][account_name]
-            # Save the original JWT token to the 'jwt_token_previous' field
-            if "jwt_token" in existing_account:
-                tokens["jwt_token_previous"] = existing_account["jwt_token"]
-                logger.info("Previous JWT token saved for account: %s", account_name)
-            else:
-                # If there is no old JWT token, set 'jwt_token_previous' to an empty string
-                tokens["jwt_token_previous"] = ""
-                logger.info("No previous JWT token found for account: %s", account_name)
 
-            if "jwt_token" in tokens:
-                expires_at = parse_jwt_expiration(str(tokens["jwt_token"]))
-                if expires_at is not None:
-                    tokens["jwt_expired"] = expires_at
-                    logger.info("JWT token expiration time set for account: %s", account_name)
+def list_accounts_data(config_path: Optional[Union[str, Path]] = None) -> None:
+    """
+    Print all account data from the configuration file in a bullet-point format.
+
+    Args:
+        config_path (Union[str, Path], optional): Path to the configuration file.
+            If None, the default configuration location will be used.
+    """
+    config = load_config(config_path)
+    if not config:
+        return
+
+    accounts = config["accounts"]
+    fields_order = [
+        "id_token",
+        "id_token_expires_at",
+        "access_token",
+        "access_token_expires_at",
+        "license_id",
+        "created_time",
+    ]
+    timestamp_fields = ["id_token_expires_at", "access_token_expires_at", "created_time"]
+
+    for account_name, account_data in accounts.items():
+        print(f"Account: {account_name}")
+        for field in fields_order:
+            if field in account_data:
+                value = account_data[field]
+                if field in timestamp_fields and isinstance(value, (int, float)):
+                    date_time = datetime.fromtimestamp(value)
+                    print(f"{field}: {date_time.strftime('%Y-%m-%d %H:%M:%S')}")
+                elif isinstance(value, str) and len(value) > 40:
+                    print(f"{field}: {value[:40]}...")
                 else:
-                    logger.warning(
-                        "Could not parse JWT expiration time for account: %s", account_name
-                    )
-
-        if account_name in config["accounts"]:
-            # Update existing account with new tokens and expiration time
-            for key, value in tokens.items():
-                config["accounts"][account_name][key] = value
-
-        # Write back to file
-        with open(config_path, 'w', encoding='utf-8') as file:
-            json.dump(config, file, indent=2)
-
-        logger.info("Successfully saved tokens for account: %s", account_name)
-        return True
-    # pylint: disable=broad-exception-caught
-    except Exception as e:
-        logger.error("Failed to save account tokens: %s", e)
-        return False
+                    print(f"{field}: {value}")
+        print("-" * 50)
 
 
-def save_multiple_jwt_to_config(
+def save_access_tokens(
     config: Dict,
     config_path: Optional[Union[str, Path]] = None,
     updated_accounts: Optional[list] = None,

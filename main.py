@@ -1,14 +1,9 @@
 import argparse
 
-from jetbrain_refresh_token.api.refresh_token import refresh_accounts_jwt
-from jetbrain_refresh_token.config.config import (
-    list_accounts,
-    show_accounts_data,
-)
-from jetbrain_refresh_token.config.operate import backup_config_file
+from jetbrain_refresh_token.api.refresh_token import refresh_expired_access_tokens
+from jetbrain_refresh_token.config.operate import backup_config_file, list_accounts_data
 from jetbrain_refresh_token.logging_setup import get_logger
 
-# 初始化日誌
 logger = get_logger("main")
 
 
@@ -32,7 +27,7 @@ def test_refresh(config_path=None):
     print(f"配置文件備份{'成功' if backup_result else '失敗'}")
 
     # 刷新 JWT 令牌
-    refresh_result = refresh_accounts_jwt(config_path)
+    refresh_result = refresh_expired_access_tokens(config_path)
 
     if refresh_result:
         print("刷新結果: 所有 JWT 令牌刷新成功")
@@ -75,7 +70,7 @@ def main():
 
     # 處理刷新 JWT 操作
     if args.refresh:
-        success = refresh_accounts_jwt(args.config)
+        success = refresh_expired_access_tokens(args.config)
         if success:
             print("所有 JWT 令牌刷新成功")
         else:
@@ -83,16 +78,7 @@ def main():
 
     # 處理列出帳戶信息操作
     if args.list:
-        accounts = list_accounts(args.config)
-        if not accounts:
-            print("沒有找到帳戶信息，請檢查配置文件")
-            return
-
-        print(f"找到 {len(accounts)} 個帳戶:")
-        for account in accounts:
-            print(f"- {account}")
-
-        show_accounts_data(args.config)
+        list_accounts_data(args.config)
 
     # 處理測試操作
     if args.test:
@@ -103,4 +89,4 @@ def main():
 if __name__ == "__main__":
     main()
 
-test_refresh()
+# test_refresh()

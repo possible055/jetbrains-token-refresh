@@ -9,7 +9,7 @@ PROJECT_ROOT = BASE_PATH.parent
 LOG_PATH = PROJECT_ROOT / "logs"
 CONFIG_PATH = PROJECT_ROOT / "config.json"
 CONFIG_BACKUP_PATH = PROJECT_ROOT / "config-backup.json"
-
+SCHEMA_PATH = BASE_PATH / 'config' / "config_schema.json"
 
 # Create logs directory if it doesn't exist
 LOG_PATH.mkdir(parents=True, exist_ok=True)
