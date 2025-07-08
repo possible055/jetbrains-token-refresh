@@ -1,12 +1,34 @@
 import base64
 import json
-import time
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
 from jetbrain_refresh_token.config import logger
-from jetbrain_refresh_token.constants import resolve_config_path
+from jetbrain_refresh_token.constants import CONFIG_PATH
+
+
+def resolve_config_path(config_path: Optional[Union[str, Path]] = None) -> Path:
+    """
+    Parse the configuration path parameter into a standardized Path object.
+
+    Args:
+        config_path (Optional[Union[str, Path]], optional): The path to the configuration file.
+            If None, the default path will be used.
+
+    Returns:
+        Path: A standardized Path object for the configuration file.
+    """
+
+    if config_path is None:
+        logger.info("Using default configuration path: %s", CONFIG_PATH)
+        return CONFIG_PATH
+    if isinstance(config_path, str):
+        path_obj = Path(config_path)
+        logger.info("Using custom configuration path (converted from string): %s", path_obj)
+        return path_obj
+    logger.info("Using custom configuration path: %s", config_path)
+    return config_path
 
 
 def load_config(config_path: Optional[Union[str, Path]] = None) -> Optional[Dict]:
@@ -68,6 +90,29 @@ def list_accounts(config_path: Optional[Union[str, Path]] = None) -> List[str]:
     return list(config["accounts"].keys())
 
 
+def load_config_schema() -> Optional[Dict]:
+    """
+    Load configuration schema from JSON file.
+
+    Returns:
+        Optional[Dict]: Schema dictionary on success; otherwise, None.
+    """
+    schema_path = Path(__file__).parent / "config_schema.json"
+
+    try:
+        with schema_path.open('r', encoding='utf-8') as f:
+            return json.load(f)
+    except FileNotFoundError:
+        logger.error("Configuration schema file not found: %s", schema_path)
+        return None
+    except json.JSONDecodeError as e:
+        logger.error("Failed to parse configuration schema file: %s", e)
+        return None
+    except OSError as e:
+        logger.error("OS error accessing configuration schema: %s", e)
+        return None
+
+
 def show_accounts_data(config_path: Optional[Union[str, Path]] = None) -> None:
     """
     Print all account data from the configuration file in a bullet-point format.
@@ -106,7 +151,7 @@ def show_accounts_data(config_path: Optional[Union[str, Path]] = None) -> None:
         print("-" * 50)
 
 
-def parse_jwt_token_expiration(jwt_token: str) -> Optional[int]:
+def parse_jwt_expiration(token: str) -> Optional[int]:
     """
     Parse the expiration time from a JWT token.
 
@@ -118,7 +163,7 @@ def parse_jwt_token_expiration(jwt_token: str) -> Optional[int]:
     """
     try:
         # A JWT token consists of three parts separated by dots: header.payload.signature
-        parts = jwt_token.split('.')
+        parts = token.split('.')
         if len(parts) != 3:
             logger.error("Invalid JWT token format: expected 3 parts")
             return None
@@ -146,38 +191,3 @@ def parse_jwt_token_expiration(jwt_token: str) -> Optional[int]:
     except Exception as e:
         logger.error("Error parsing JWT token: %s", e)
         return None
-
-
-def is_jwt_expired(jwt: str) -> bool:
-    """
-    Check whether the JWT token for the specified account has expired.
-
-    Args:
-        jwt (str): JWT string to check.
-
-    Returns:
-        bool: True if the token is expired, about to expire, or its expiration
-            time cannot be determined; otherwise, False.
-    """
-
-    expires_at = parse_jwt_token_expiration(jwt)
-    if expires_at is None:
-        return True
-
-    # Check if the token has expired or has less than 5 minutes (300 seconds) remaining
-    current_time = int(time.time())
-    return current_time >= expires_at or (expires_at - current_time) < 300
-
-
-def is_id_token_expired(expired_at: int) -> bool:
-    """
-    Check whether the ID token has expired.
-
-    Args:
-        expired_at (int): Expiration time as a UNIX timestamp.
-
-    Returns:
-        bool: True if the token is expired, False otherwise.
-    """
-    current_time = int(time.time())
-    return current_time >= expired_at or (expired_at - current_time) < 300

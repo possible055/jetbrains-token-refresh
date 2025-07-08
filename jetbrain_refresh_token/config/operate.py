@@ -3,9 +3,16 @@ import shutil
 from pathlib import Path
 from typing import Dict, Optional, Union
 
+from jsonschema import ValidationError, validate
+
 from jetbrain_refresh_token.config import logger
-from jetbrain_refresh_token.config.config import parse_jwt_token_expiration
-from jetbrain_refresh_token.constants import CONFIG_BACKUP_PATH, resolve_config_path
+from jetbrain_refresh_token.config.config import (
+    load_config_schema,
+    parse_jwt_expiration,
+    resolve_config_path,
+)
+from jetbrain_refresh_token.config.utils import is_vaild_jwt_format
+from jetbrain_refresh_token.constants import CONFIG_BACKUP_PATH
 
 
 def backup_config_file(config_path: Optional[Union[str, Path]] = None) -> bool:
@@ -33,6 +40,65 @@ def backup_config_file(config_path: Optional[Union[str, Path]] = None) -> bool:
     except (PermissionError, OSError) as e:
         logger.error("File system error occurred while backing up the configuration file: %s", e)
         return False
+
+
+def validate_config_format(config: Dict) -> bool:
+    """
+    Validate the format of configuration file fields.
+
+    Args:
+        config (Dict): Configuration dictionary that has been loaded.
+
+    Returns:
+        bool: True if the configuration format is valid, False otherwise.
+    """
+    # Load and validate using JSON Schema
+    schema = load_config_schema()
+    if schema is None:
+        logger.error("Failed to load configuration schema")
+        return False
+
+    try:
+        validate(instance=config, schema=schema)
+        logger.info("Configuration format is valid based on the schema.")
+    except ValidationError as e:
+        logger.error("Schema validation failed: %s", e.message)
+        logger.error("Failed on instance path: /%s", "/".join(map(str, e.path)))
+        return False
+
+    # Additional JWT format validation (only what schema cannot handle)
+    for account_name, account_data in config["accounts"].items():
+        # Validate JWT fields that require format checking
+        jwt_fields = ["id_token", "jwt_token", "jwt_token_previous"]
+        for field in jwt_fields:
+            if field in account_data:
+                value = account_data[field]
+                # jwt_token_previous can be empty string
+                if field == "jwt_token_previous":
+                    if value and not is_vaild_jwt_format(value):
+                        logger.error(
+                            "Account '%s' field '%s' has invalid JWT format", account_name, field
+                        )
+                        return False
+                else:
+                    # id_token and jwt_token must be valid JWT
+                    if not value or not is_vaild_jwt_format(value):
+                        logger.error(
+                            "Account '%s' field '%s' has invalid JWT format", account_name, field
+                        )
+                        return False
+
+        # Check for required expiration fields (one of them should exist)
+        if not account_data.get("access_token_expired") and not account_data.get(
+            "auth_token_expired"
+        ):
+            logger.error(
+                "Account '%s' must have either 'access_token_expired' or 'auth_token_expired' field",
+                account_name,
+            )
+            return False
+
+    return True
 
 
 def save_jwt_to_config(
@@ -74,7 +140,7 @@ def save_jwt_to_config(
                 logger.info("No previous JWT token found for account: %s", account_name)
 
             if "jwt_token" in tokens:
-                expires_at = parse_jwt_token_expiration(str(tokens["jwt_token"]))
+                expires_at = parse_jwt_expiration(str(tokens["jwt_token"]))
                 if expires_at is not None:
                     tokens["jwt_expired"] = expires_at
                     logger.info("JWT token expiration time set for account: %s", account_name)
