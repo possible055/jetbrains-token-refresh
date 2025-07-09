@@ -11,7 +11,7 @@ from jetbrains_refresh_token.config.manager import (
     save_access_tokens,
     save_id_tokens,
 )
-from jetbrains_refresh_token.config.helpers import (
+from jetbrains_refresh_token.config.utils import (
     is_id_token_expired,
     is_jwt_expired,
     parse_jwt_expiration,

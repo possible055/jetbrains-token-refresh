@@ -5,7 +5,7 @@ from typing import Dict, Optional, Union
 from jsonschema import ValidationError, validate
 
 from jetbrains_refresh_token.config import logger
-from jetbrains_refresh_token.config.helpers import is_vaild_jwt_format, parse_jwt_expiration
+from jetbrains_refresh_token.config.utils import is_vaild_jwt_format
 from jetbrains_refresh_token.constants import CONFIG_PATH, SCHEMA_PATH
 
 
