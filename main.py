@@ -1,13 +1,18 @@
 import argparse
 
-from jetbrain_refresh_token.api.refresh_token import refresh_expired_access_tokens
+from jetbrain_refresh_token.api.refresh_token import (
+    refresh_expired_access_token,
+    refresh_expired_access_tokens,
+    refresh_expired_id_token,
+    refresh_expired_id_tokens,
+)
 from jetbrain_refresh_token.config.operate import backup_config_file, list_accounts_data
 from jetbrain_refresh_token.logging_setup import get_logger
 
 logger = get_logger("main")
 
 
-def test_refresh(config_path=None):
+def test_refresh(config_path=None, forced=False, account_name=None, token_type="access"):
     """
     手動測試函數，用於在不使用命令行參數的情況下測試刷新功能。
 
@@ -15,72 +20,146 @@ def test_refresh(config_path=None):
 
     Args:
         config_path (str, optional): 配置文件路徑。默認為 None，使用系統默認路徑。
+        forced (bool, optional): 是否強制更新 tokens。默認為 False。
+        account_name (str, optional): 指定要更新的帳戶名稱。如果為 None，則更新所有帳戶。
+        token_type (str, optional): 令牌類型 ("access" 或 "id")。默認為 "access"。
 
     Returns:
-        bool: 如果所有令牌刷新成功返回 True，否則返回 False
+        bool: 如果令牌刷新成功返回 True，否則返回 False
     """
-    print("開始手動測試 JWT 刷新...")
+    token_desc = "ID 令牌" if token_type == "id" else "JWT 令牌"
+
+    if account_name:
+        print(
+            f"開始手動測試單帳戶 '{account_name}' {token_desc}刷新{'（強制模式）' if forced else ''}..."
+        )
+    else:
+        print(f"開始手動測試所有帳戶 {token_desc}刷新{'（強制模式）' if forced else ''}...")
+
     print(f"使用配置文件: {config_path if config_path else '默認路徑'}")
 
     # 先備份配置文件
     backup_result = backup_config_file(config_path)
     print(f"配置文件備份{'成功' if backup_result else '失敗'}")
 
-    # 刷新 JWT 令牌
-    refresh_result = refresh_expired_access_tokens(config_path)
-
-    if refresh_result:
-        print("刷新結果: 所有 JWT 令牌刷新成功")
+    # 刷新令牌
+    if token_type == "id":
+        if account_name:
+            refresh_result = refresh_expired_id_token(account_name, config_path, forced=forced)
+            if refresh_result:
+                print(f"刷新結果: 帳戶 '{account_name}' ID 令牌刷新成功")
+            else:
+                print(f"刷新結果: 帳戶 '{account_name}' ID 令牌刷新失敗，請查看日誌")
+        else:
+            refresh_result = refresh_expired_id_tokens(config_path, forced=forced)
+            if refresh_result:
+                print("刷新結果: 所有 ID 令牌刷新成功")
+            else:
+                print("刷新結果: 部分或全部 ID 令牌刷新失敗，請查看日誌")
     else:
-        print("刷新結果: 部分或全部 JWT 令牌刷新失敗，請查看日誌")
+        if account_name:
+            refresh_result = refresh_expired_access_token(account_name, config_path, forced=forced)
+            if refresh_result:
+                print(f"刷新結果: 帳戶 '{account_name}' JWT 令牌刷新成功")
+            else:
+                print(f"刷新結果: 帳戶 '{account_name}' JWT 令牌刷新失敗，請查看日誌")
+        else:
+            refresh_result = refresh_expired_access_tokens(config_path, forced=forced)
+            if refresh_result:
+                print("刷新結果: 所有 JWT 令牌刷新成功")
+            else:
+                print("刷新結果: 部分或全部 JWT 令牌刷新失敗，請查看日誌")
 
     return refresh_result
 
 
-def main():
-    """
-    主函數，解析命令行參數並執行相應操作。
-    """
+def setup_argument_parser():
     parser = argparse.ArgumentParser(
-        description='JetBrains JWT 令牌刷新工具', epilog='使用示例: python main.py --refresh'
+        description='JetBrains JWT Token Refresh Tool',
+        epilog='Usage example: python main.py --refresh-access',
     )
 
-    # 添加命令行參數
-    parser.add_argument('--refresh', action='store_true', help='刷新所有帳戶的 JWT 令牌')
-    parser.add_argument('--config', type=str, default=None, help='指定配置文件路徑')
-    parser.add_argument('--backup', action='store_true', help='備份配置文件')
-    parser.add_argument('--list', action='store_true', help='列出所有帳戶信息')
-    parser.add_argument('--test', action='store_true', help='運行手動測試函數')
+    parser.add_argument('--config', type=str, default=None, help='Specify configuration file path')
+    parser.add_argument('--refresh-access', type=str, help='Refresh JWT for the specified account')
 
-    # 解析命令行參數
+    parser.add_argument(
+        '--refresh-all-access', action='store_true', help='Refresh JWT for all accounts'
+    )
+    parser.add_argument(
+        '--refresh-auth', type=str, help='Refresh ID token for the specified account'
+    )
+    parser.add_argument(
+        '--refresh-all-auth', action='store_true', help='Refresh ID tokens for all accounts'
+    )
+    parser.add_argument('--backup', action='store_true', help='Backup configuration file')
+    parser.add_argument('--list', action='store_true', help='List all account information')
+    parser.add_argument('--test', action='store_true', help='Run manual test functions')
+    parser.add_argument(
+        '--force', action='store_true', help='Force update tokens (use with refresh options)'
+    )
+
+    return parser
+
+
+def main():
+    parser = setup_argument_parser()
     args = parser.parse_args()
 
-    # 如果沒有指定任何操作，顯示幫助信息
-    if not (args.refresh or args.backup or args.list or args.test):
+    if not (
+        args.refresh_access
+        or args.refresh_all_access
+        or args.refresh_auth
+        or args.refresh_all_auth
+        or args.backup
+        or args.list
+        or args.test
+    ):
         parser.print_help()
-        return
 
-    # 處理備份操作
     if args.backup:
         success = backup_config_file(args.config)
         if success:
-            print("配置文件備份成功")
+            logger.info("Configuration file backup succeeded.")
         else:
-            print("配置文件備份失敗，請查看日誌")
+            logger.error("Configuration file backup failed. Please check the logs.")
 
-    # 處理刷新 JWT 操作
-    if args.refresh:
-        success = refresh_expired_access_tokens(args.config)
+    if args.refresh_access:
+        success = refresh_expired_access_token(args.refresh_access, args.config, forced=args.force)
         if success:
-            print("所有 JWT 令牌刷新成功")
+            logger.info("Access token for account '%s' refreshed successfully", args.refresh_access)
         else:
-            print("部分或全部 JWT 令牌刷新失敗，請查看日誌")
+            logger.error(
+                "Failed to refresh access token for account '%s'. Please check the logs",
+                args.refresh_access,
+            )
 
-    # 處理列出帳戶信息操作
+    if args.refresh_all_access:
+        success = refresh_expired_access_tokens(args.config, forced=args.force)
+        if success:
+            logger.info("All access tokens refreshed successfully.")
+        else:
+            logger.error("Some or all access tokens failed to refresh. Please check the logs.")
+
+    if args.refresh_auth:
+        success = refresh_expired_id_token(args.refresh_auth, args.config, forced=args.force)
+        if success:
+            logger.info("ID token for account '%s' refreshed successfully", args.refresh_auth)
+        else:
+            logger.error(
+                "Failed to refresh ID token for account '%s'. Please check the logs",
+                args.refresh_auth,
+            )
+
+    if args.refresh_all_auth:
+        success = refresh_expired_id_tokens(args.config, forced=args.force)
+        if success:
+            logger.info("All ID tokens refreshed successfully.")
+        else:
+            logger.error("Some or all ID tokens failed to refresh. Please check the logs.")
+
     if args.list:
         list_accounts_data(args.config)
 
-    # 處理測試操作
     if args.test:
         test_refresh(args.config)
 
