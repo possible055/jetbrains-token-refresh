@@ -1,13 +1,13 @@
 import argparse
 
-from jetbrain_refresh_token.api.refresh_token import (
+from jetbrains_refresh_token.api.auth import (
     refresh_expired_access_token,
     refresh_expired_access_tokens,
     refresh_expired_id_token,
     refresh_expired_id_tokens,
 )
-from jetbrain_refresh_token.config.operate import backup_config_file, list_accounts_data
-from jetbrain_refresh_token.logging_setup import get_logger
+from jetbrains_refresh_token.config.manager import backup_config_file, list_accounts_data
+from jetbrains_refresh_token.log_config import get_logger
 
 logger = get_logger("main")
 

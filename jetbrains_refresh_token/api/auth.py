@@ -1,17 +1,17 @@
 from pathlib import Path
 from typing import Optional, Union
 
-from jetbrain_refresh_token.api.scheme import request_access_token, request_id_token
-from jetbrain_refresh_token.config import logger
-from jetbrain_refresh_token.config.config import (
+from jetbrains_refresh_token.api.client import request_access_token, request_id_token
+from jetbrains_refresh_token.config import logger
+from jetbrains_refresh_token.config.loader import (
     load_config,
     resolve_config_path,
 )
-from jetbrain_refresh_token.config.operate import (
+from jetbrains_refresh_token.config.manager import (
     save_access_tokens,
     save_id_tokens,
 )
-from jetbrain_refresh_token.config.utils import (
+from jetbrains_refresh_token.config.helpers import (
     is_id_token_expired,
     is_jwt_expired,
     parse_jwt_expiration,

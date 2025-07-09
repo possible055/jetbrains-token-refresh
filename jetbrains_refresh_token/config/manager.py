@@ -4,12 +4,12 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Optional, Union
 
-from jetbrain_refresh_token.config import logger
-from jetbrain_refresh_token.config.config import (
+from jetbrains_refresh_token.config import logger
+from jetbrains_refresh_token.config.loader import (
     load_config,
     resolve_config_path,
 )
-from jetbrain_refresh_token.constants import CONFIG_BACKUP_PATH
+from jetbrains_refresh_token.constants import CONFIG_BACKUP_PATH
 
 
 def backup_config_file(config_path: Optional[Union[str, Path]] = None) -> bool:

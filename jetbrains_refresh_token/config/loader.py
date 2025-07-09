@@ -4,9 +4,9 @@ from typing import Dict, Optional, Union
 
 from jsonschema import ValidationError, validate
 
-from jetbrain_refresh_token.config import logger
-from jetbrain_refresh_token.config.utils import is_vaild_jwt_format, parse_jwt_expiration
-from jetbrain_refresh_token.constants import CONFIG_PATH, SCHEMA_PATH
+from jetbrains_refresh_token.config import logger
+from jetbrains_refresh_token.config.helpers import is_vaild_jwt_format, parse_jwt_expiration
+from jetbrains_refresh_token.constants import CONFIG_PATH, SCHEMA_PATH
 
 
 def resolve_config_path(config_path: Optional[Union[str, Path]] = None) -> Path:

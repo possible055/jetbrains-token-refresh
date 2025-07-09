@@ -5,7 +5,7 @@ from typing import Optional
 
 import jwt
 
-from jetbrain_refresh_token.config import logger
+from jetbrains_refresh_token.config import logger
 
 
 def parse_jwt_expiration(token: str) -> Optional[int]:

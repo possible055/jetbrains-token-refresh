@@ -6,10 +6,11 @@ from fake_useragent import UserAgent
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
-from jetbrain_refresh_token.logging_setup import get_logger
+from jetbrains_refresh_token.log_config import get_logger
 
 OAUTH_URL = "https://oauth.account.jetbrains.com/oauth2/token"
 JWT_AUTH_URL = "https://api.jetbrains.ai/auth/jetbrains-jwt/provide-access/license/v2"
+JWT_QUOTA_URL = "https://api.jetbrains.ai/user/v5/quota/get"
 CLIENT_ID = "ide"
 
 
@@ -17,15 +18,15 @@ logger = get_logger("api.refresh_token")
 
 
 def requests_post(
-    url: str, data: Any, headers: Dict[str, str], timeout: int = 10
+    url: str, headers: Dict[str, str], data: Optional[Any] = None, timeout: int = 10
 ) -> Optional[requests.Response]:
     """
     Send an HTTP POST request with a retry strategy.
 
     Args:
         url (str): Target URL.
-        data (Any): Request payload.
         headers (Dict[str, str]): HTTP request headers.
+        data (Any): Request payload.
         timeout (int, optional): Request timeout in seconds. Defaults to 10.
 
     Returns:
@@ -170,6 +171,51 @@ def request_access_token(id_token: str, license_id: str) -> Optional[Dict]:
 
         logger.error("License: Non-Paid Version")
         return None
+
+    logger.error(
+        "Request failed with status code: %s. Response: %s", response.status_code, response.text
+    )
+    return None
+
+
+def request_quota_info(access_token: str, grazie_agent: Optional[Dict] = None) -> Optional[Dict]:
+    """
+    Query the quota information of a JWT token.
+
+    Args:
+        access_token: The JWT access token.
+        grazie_agent: Optional grazie-agent information.
+
+    Returns:
+        dict: A dictionary containing the quota information.
+    """
+    headers = {
+        'Accept': "*/*",
+        'Content-Type': "application/json",
+        'Accept-Charset': "UTF-8",
+        'grazie-authenticate-jwt': access_token,
+        'User-Agent': "ktor-client",
+    }
+
+    # If grazie-agent information is provided, add it to the headers
+    if grazie_agent:
+        headers["grazie-agent"] = json.dumps(grazie_agent)
+    else:
+        default_grazie_agent = {"name": "aia:dataspell", "version": "251.26094.80.22:251.26927.75"}
+        headers["grazie-agent"] = json.dumps(default_grazie_agent)
+
+    response = requests_post(JWT_QUOTA_URL, headers=headers, timeout=10)
+    if not response:
+        logger.error("Request failed: no response.")
+        return None
+
+    if response.status_code == 200:
+        try:
+            data = response.json()
+        except (ValueError, json.JSONDecodeError) as e:
+            logger.error("Failed to parse JSON: %s", e)
+            return None
+        return data
 
     logger.error(
         "Request failed with status code: %s. Response: %s", response.status_code, response.text
