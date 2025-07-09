@@ -12,8 +12,8 @@ requires = ["setuptools>=68", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "jetbrain_refresh_token"
-version = "0.1.0"
+name = "jetbrains_refresh_token"
+version = "0.2.0"
 authors = [{ name = "possible055", email = "possble055@gmail.com" }]
 description = ""
 readme = "README.md"
@@ -22,9 +22,12 @@ requires-python = ">=3.11"
 
 dependencies = [
     "fake_useragent==2.2.0",
+    "jsonschema==4.24.0",
     "Requests==2.32.4",
     "setuptools==78.1.1",
     "urllib3==2.5.0",
+    "PyJWT==2.10.1",
+    "streamlit==1.46.1",
 ]
 
 keywords = ["python"]
@@ -41,11 +44,11 @@ classifiers = [
 ]
 
 [project.scripts]
-simple-eval = "jetbrain_refresh_token.main:main"
+jetbrains_refresh_token = "jetbrains_refresh_token.main:main"
 
 [project.urls]
-Source = "https://github.com/possible055/jetbrains-token-refresh"
-Bug-Tracker = "https://github.com/possible055/jetbrains-token-refresh/issues"
+Source = "https://github.com/possible055/jetbrains_refresh_token"
+Bug-Tracker = "https://github.com/possible055/jetbrains_refresh_token/issues"
 
 [tool.setuptools]
 include-package-data = true
@@ -54,6 +57,6 @@ include-package-data = true
 
 where = ["."]
 
-include = ["simple_eval*"]
+include = ["jetbrains_refresh_token*"]
 
 # exclude = ["tests*"]

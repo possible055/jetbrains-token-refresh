@@ -1,6 +1,24 @@
+# Core dependencies
 fake_useragent==2.2.0
-jsonschema==4.23.0
+jsonschema==4.24.0
+PyJWT==2.10.1
 Requests==2.32.4
 setuptools==78.1.1
 urllib3==2.5.0
-PyJWT==2.10.1
+
+# Streamlit and UI dependencies
+streamlit==1.46.1
+plotly>=5.17.0
+pandas>=2.1.0
+numpy>=1.24.0
+Pillow>=10.0.0
+
+# Additional utilities
+loguru>=0.7.0
+pydantic>=2.0.0
+cryptography>=41.0.0
+keyring>=24.0.0
+apscheduler>=3.10.0
+python-dotenv>=1.0.0
+click>=8.1.0
+tabulate>=0.9.0
