@@ -1,6 +1,8 @@
 import argparse
+import json
 
 from jetbrains_refresh_token.api.auth import (
+    check_quota_remaining,
     refresh_expired_access_token,
     refresh_expired_access_tokens,
     refresh_expired_id_token,
@@ -73,6 +75,34 @@ def test_refresh(config_path=None, forced=False, account_name=None, token_type="
     return refresh_result
 
 
+def test_quota_check(config_path=None):
+    """
+    手動測試函數，用於測試所有帳戶配額檢查功能。
+
+    Args:
+        config_path (str, optional): 配置文件路徑。默認為 None，使用系統默認路徑。
+
+    Returns:
+        bool: 如果配額檢查成功返回 True，否則返回 False
+    """
+    print("開始測試所有帳戶的配額檢查...")
+    print(f"使用配置文件: {config_path if config_path else '默認路徑'}")
+
+    # 檢查所有帳戶配額
+    success = check_quota_remaining(config_path)
+
+    if success:
+        print("✅ 配額檢查成功！")
+        print("=" * 50)
+        print("所有帳戶的配額信息已更新到配置文件中")
+        print("使用 --list 選項查看詳細的配額信息")
+        print("=" * 50)
+        return True
+    else:
+        print("❌ 配額檢查失敗！請查看日誌獲取詳細信息")
+        return False
+
+
 def setup_argument_parser():
     parser = argparse.ArgumentParser(
         description='JetBrains JWT Token Refresh Tool',
@@ -95,6 +125,9 @@ def setup_argument_parser():
     parser.add_argument('--list', action='store_true', help='List all account information')
     parser.add_argument('--test', action='store_true', help='Run manual test functions')
     parser.add_argument(
+        '--check-quota', action='store_true', help='Check quota remaining for all accounts'
+    )
+    parser.add_argument(
         '--force', action='store_true', help='Force update tokens (use with refresh options)'
     )
 
@@ -113,6 +146,7 @@ def main():
         or args.backup
         or args.list
         or args.test
+        or args.check_quota
     ):
         parser.print_help()
 
@@ -159,6 +193,13 @@ def main():
 
     if args.list:
         list_accounts_data(args.config)
+
+    if args.check_quota:
+        success = test_quota_check(args.config)
+        if success:
+            logger.info("Quota check for all accounts completed successfully")
+        else:
+            logger.error("Failed to check quota for all accounts. Please check the logs")
 
     if args.test:
         test_refresh(args.config)

@@ -78,6 +78,7 @@ def list_accounts_data(config_path: Optional[Union[str, Path]] = None) -> None:
         "access_token_expires_at",
         "license_id",
         "created_time",
+        "quota_info",
     ]
     timestamp_fields = ["id_token_expires_at", "access_token_expires_at", "created_time"]
 
@@ -89,6 +90,11 @@ def list_accounts_data(config_path: Optional[Union[str, Path]] = None) -> None:
                 if field in timestamp_fields and isinstance(value, (int, float)):
                     date_time = datetime.fromtimestamp(value)
                     print(f"{field}: {date_time.strftime('%Y-%m-%d %H:%M:%S')}")
+                elif field == "quota_info" and isinstance(value, dict):
+                    print(f"{field}:")
+                    print(f"  Remaining: {value.get('remaining_amount', 'N/A')}")
+                    print(f"  Usage: {value.get('usage_percentage', 0):.1f}%")
+                    print(f"  Status: {value.get('status', 'unknown')}")
                 elif isinstance(value, str) and len(value) > 40:
                     print(f"{field}: {value[:40]}...")
                 else:
@@ -181,4 +187,86 @@ def save_id_tokens(
     # pylint: disable=broad-exception-caught
     except Exception as e:
         logger.error("Failed to save account ID tokens: %s", e)
+        return False
+
+
+def save_quota_info(
+    config: Dict,
+    account_name: str,
+    quota_data: Dict,
+    config_path: Optional[Union[str, Path]] = None,
+) -> bool:
+    """
+    Save quota information for a specific account to the configuration file.
+
+    Args:
+        account_name (str): The name of the account to save quota info for.
+        quota_data (Dict): The quota information to save.
+        config_path (Optional[Union[str, Path]], optional): Path to the configuration file.
+            If None, uses default config location.
+
+    Returns:
+        bool: True if successful, False otherwise.
+    """
+    config_path = resolve_config_path(config_path)
+
+    try:
+        # Process quota data to extract key information
+        current_data = quota_data.get('current', {})
+        if current_data:
+            maximum_amount = current_data.get('maximum', {}).get('amount', 'N/A')
+            current_amount = current_data.get('current', {}).get('amount', 'N/A')
+
+            # Calculate remaining amount and usage percentage
+            remaining_amount = 'N/A'
+            usage_percentage = 0.0
+            status = 'unknown'
+
+            try:
+                if current_amount != 'N/A' and maximum_amount != 'N/A':
+                    current_float = float(current_amount.rstrip('.'))
+                    maximum_float = float(maximum_amount.rstrip('.'))
+                    remaining_float = maximum_float - current_float
+                    remaining_amount = str(remaining_float)
+                    usage_percentage = (current_float / maximum_float) * 100
+
+                    # Determine status based on usage percentage
+                    if usage_percentage > 90:
+                        status = 'critical'
+                    elif usage_percentage > 80:
+                        status = 'warning'
+                    else:
+                        status = 'normal'
+            except (ValueError, TypeError, ZeroDivisionError):
+                logger.warning(
+                    "Could not calculate quota statistics for account '%s'", account_name
+                )
+
+            # Save quota information to config (simplified structure)
+            quota_info = {
+                'remaining_amount': remaining_amount,
+                'usage_percentage': usage_percentage,
+                'status': status,
+            }
+
+            config["accounts"][account_name]["quota_info"] = quota_info
+            logger.info("Quota information processed for account '%s'", account_name)
+        else:
+            logger.warning("No current quota data found for account '%s'", account_name)
+            return False
+
+        # Backup the configuration file before making changes
+        backup_result = backup_config_file(config_path)
+        if not backup_result:
+            logger.warning("Failed to back up config file, but will continue with save operation")
+
+        # Write back to file
+        with open(config_path, 'w', encoding='utf-8') as file:
+            json.dump(config, file, indent=2)
+
+        logger.info("Successfully saved quota information for account: %s", account_name)
+        return True
+    # pylint: disable=broad-exception-caught
+    except Exception as e:
+        logger.error("Failed to save quota information for account '%s': %s", account_name, e)
         return False

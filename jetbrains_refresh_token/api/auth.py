@@ -1,7 +1,11 @@
 from pathlib import Path
-from typing import Optional, Union
+from typing import Dict, Optional, Union
 
-from jetbrains_refresh_token.api.client import request_access_token, request_id_token
+from jetbrains_refresh_token.api.client import (
+    request_access_token,
+    request_id_token,
+    request_quota_info,
+)
 from jetbrains_refresh_token.config import logger
 from jetbrains_refresh_token.config.loader import (
     load_config,
@@ -10,6 +14,7 @@ from jetbrains_refresh_token.config.loader import (
 from jetbrains_refresh_token.config.manager import (
     save_access_tokens,
     save_id_tokens,
+    save_quota_info,
 )
 from jetbrains_refresh_token.config.utils import (
     is_id_token_expired,
@@ -412,3 +417,70 @@ def refresh_expired_id_token(
 
     logger.info("ID token refresh successful for account: %s", account_name)
     return True
+
+
+def check_quota_remaining(config_path: Optional[Union[str, Path]] = None) -> bool:
+    """
+    Check the remaining quota for all accounts' access tokens.
+
+    Args:
+        config_path (Optional[Union[str, Path]], optional): Path to the configuration file.
+            Defaults to None, using the system default path.
+
+    Returns:
+        bool: Returns True if all quota checks are successful or not needed; returns False on failure.
+    """
+    config_path = resolve_config_path(config_path)
+
+    config = load_config(config_path)
+    if not config:
+        logger.error("Failed to load configuration")
+        return False
+
+    # Keeping track of the quota check status for all accounts
+    all_successful = True
+    config_updated = False
+    updated_accounts = []  # Track which accounts are updated
+
+    logger.info("Starting quota check for all accounts")
+
+    for account_name, account_data in config["accounts"].items():
+        # Get access token
+        access_token = account_data.get("access_token", "N/A")
+        if access_token == "N/A":
+            logger.warning(
+                "No access token found for account '%s'. Skipping quota check.", account_name
+            )
+            continue
+
+        logger.info("Checking quota information for account: %s", account_name)
+
+        # Request quota information
+        quota_info = request_quota_info(access_token)
+        if not quota_info:
+            logger.error("Failed to retrieve quota information for account '%s'", account_name)
+            all_successful = False
+            continue
+
+        logger.info("Successfully retrieved quota information for account: %s", account_name)
+        logger.debug("Quota info for account '%s': %s", account_name, quota_info)
+
+        # Save quota information to config file
+        save_result = save_quota_info(config, account_name, quota_info, config_path)
+        if save_result:
+            logger.info("Quota information saved to config for account: %s", account_name)
+            config_updated = True
+            updated_accounts.append(account_name)
+        else:
+            logger.warning(
+                "Failed to save quota information to config for account: %s", account_name
+            )
+            all_successful = False
+
+    # Final save if any account was updated
+    if config_updated:
+        logger.info("Quota check completed for accounts: %s", ", ".join(updated_accounts))
+    else:
+        logger.info("No quota information was saved")
+
+    return all_successful

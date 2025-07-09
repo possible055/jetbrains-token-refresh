@@ -37,6 +37,28 @@
                 "number",
                 "integer"
               ]
+            },
+            "quota_info": {
+              "type": "object",
+              "properties": {
+                "remaining_amount": {
+                  "type": "string"
+                },
+                "usage_percentage": {
+                  "type": "number"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": ["normal", "warning", "critical", "unknown"]
+                }
+              },
+              "additionalProperties": false
+            },
+            "id_token_expires_at": {
+              "type": [
+                "number",
+                "integer"
+              ]
             }
           },
           "required": [
