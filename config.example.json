@@ -1,0 +1,36 @@
+{
+  "accounts": {
+    "account1": {
+      "id_token": "",
+      "previous_id_token": "",
+      "refresh_token": "",
+      "id_token_expires_at": 1752064948,
+      "access_token": "",
+      "previous_access_token": "",
+      "access_token_expires_at": 1752165317,
+      "license_id": "",
+      "created_time": 1751903023,
+      "quota_info": {
+        "remaining_amount": "2000000",
+        "usage_percentage": 100,
+        "status": "normal"
+      }
+    },
+    "account2": {
+      "id_token": "",
+      "previous_id_token": "",
+      "refresh_token": "",
+      "id_token_expires_at": 1751560224,
+      "access_token": "",
+      "previous_access_token": "",
+      "access_token_expires_at": 1752165318,
+      "license_id": "",
+      "created_time": 1751903023,
+      "quota_info": {
+        "remaining_amount": "2000000",
+        "usage_percentage": 100,
+        "status": "normal"
+      }
+    }
+  }
+}
