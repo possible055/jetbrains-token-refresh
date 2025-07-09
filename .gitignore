@@ -30,8 +30,9 @@ venv*/
 .DS_Store
 Thumbs.db
 *.log
-*.json
 .env
+config.json
+config-backup.json
 
 # --- project-specific rules ---
 issues/

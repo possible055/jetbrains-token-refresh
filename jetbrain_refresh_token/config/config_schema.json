@@ -1,0 +1,59 @@
+{
+  "type": "object",
+  "properties": {
+    "accounts": {
+      "type": "object",
+      "minProperties": 1,
+      "patternProperties": {
+        "^.+$": {
+          "type": "object",
+          "properties": {
+            "id_token": {
+              "type": "string"
+            },
+            "previous_id_token": {
+              "type": "string"
+            },
+            "refresh_token": {
+              "type": "string"
+            },
+            "access_token": {
+              "type": "string"
+            },
+            "previous_access_token": {
+              "type": "string"
+            },
+            "access_token_expires_at": {
+              "type": [
+                "number",
+                "integer"
+              ]
+            },
+            "license_id": {
+              "type": "string"
+            },
+            "created_time": {
+              "type": [
+                "number",
+                "integer"
+              ]
+            }
+          },
+          "required": [
+            "id_token",
+            "refresh_token",
+            "access_token",
+            "access_token_expires_at",
+            "license_id",
+            "created_time"
+          ],
+          "additionalProperties": true
+        }
+      }
+    }
+  },
+  "required": [
+    "accounts"
+  ],
+  "additionalProperties": true
+}

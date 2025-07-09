@@ -3,7 +3,10 @@ import json
 from pathlib import Path
 from typing import Dict, Optional, Union
 
+from jsonschema import ValidationError, validate
+
 from jetbrain_refresh_token.config import logger
+from jetbrain_refresh_token.config.utils import is_vaild_jwt_format
 from jetbrain_refresh_token.constants import CONFIG_PATH, SCHEMA_PATH
 
 
@@ -41,7 +44,11 @@ def load_config(config_path: Optional[Union[str, Path]] = None) -> Optional[Dict
             If None, uses default config.json in config directory.
 
     Returns:
-        Optional[Dict]: Configuration dictionary on success; otherwise, None.
+        Optional[Dict]: Configuration dictionary on success; None if file system errors occur.
+
+    Raises:
+        RuntimeError: If the configuration schema cannot be loaded.
+        ValueError: If the configuration format is invalid or JWT format is invalid.
     """
     config_path = resolve_config_path(config_path)
 
@@ -58,14 +65,9 @@ def load_config(config_path: Optional[Union[str, Path]] = None) -> Optional[Dict
         logger.error("OS error accessing configuration: %s", e)
         return None
 
-    # Validate required structure
-    if (
-        "accounts" not in config
-        or not isinstance(config["accounts"], dict)
-        or not config["accounts"]
-    ):
-        logger.error("Invalid configuration: 'accounts' section missing, invalid, or empty")
-        return None
+    # Validate configuration format using comprehensive validation
+    # This will raise ValueError for format errors, RuntimeError for schema loading errors
+    validate_config_format(config)
 
     return config
 
@@ -91,6 +93,59 @@ def load_config_schema() -> Optional[Dict]:
     except OSError as e:
         logger.error("OS error accessing configuration schema: %s", e)
         return None
+
+
+def validate_config_format(config: Dict) -> None:
+    """
+    Validate the format of configuration file fields.
+
+    Args:
+        config (Dict): Configuration dictionary that has been loaded.
+
+    Raises:
+        RuntimeError: If the configuration schema cannot be loaded.
+        ValueError: If the configuration format is invalid or JWT format is invalid.
+    """
+    # Load and validate using JSON Schema
+    schema = load_config_schema()
+    if schema is None:
+        logger.error("Failed to load configuration schema")
+        raise RuntimeError("Failed to load configuration schema")
+
+    try:
+        validate(instance=config, schema=schema)
+        logger.info("Configuration format is valid based on the schema.")
+    except ValidationError as e:
+        logger.error("Schema validation failed: %s", e.message)
+        logger.error("Failed on instance path: /%s", "/".join(map(str, e.path)))
+        raise ValueError(f"Schema validation failed: {e.message}") from e
+
+    # Additional JWT format validation (only what schema cannot handle)
+    for account_name, account_data in config["accounts"].items():
+        jwt_validations = [
+            ("id_token", False),
+            ("access_token", False),
+            ("previous_access_token", True),
+            ("previous_id_token", True),
+        ]
+
+        for field, allow_empty in jwt_validations:
+            if field in account_data:
+                value = account_data[field]
+
+                # Check for empty string
+                if not allow_empty and not value:
+                    logger.error("Account '%s' field '%s' cannot be empty", account_name, field)
+                    raise ValueError(f"Account '{account_name}' field '{field}' cannot be empty")
+
+                # Check for valid JWT format
+                if value and not is_vaild_jwt_format(value):
+                    logger.error(
+                        "Account '%s' field '%s' has invalid JWT format", account_name, field
+                    )
+                    raise ValueError(
+                        f"Account '{account_name}' field '{field}' has invalid JWT format"
+                    )
 
 
 def parse_jwt_expiration(token: str) -> Optional[int]:
