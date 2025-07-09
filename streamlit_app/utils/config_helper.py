@@ -7,14 +7,112 @@ import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+
+# Fallback implementations for development
+def _fallback_load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
+    """Fallback implementation for load_config"""
+    return {"accounts": {}}
+
+
+def _fallback_resolve_config_path(config_path: Optional[str] = None) -> Path:
+    """Fallback implementation for resolve_config_path"""
+    return Path("config.json")
+
+
+def _fallback_backup_config_file(config_path: Optional[str] = None) -> bool:
+    """Fallback implementation for backup_config_file"""
+    return True
+
+
+def _fallback_list_accounts(config_path: Optional[str] = None) -> List[str]:
+    """Fallback implementation for list_accounts"""
+    return []
+
+
+def _fallback_save_access_tokens(
+    config: Dict[str, Any],
+    config_path: Optional[str] = None,
+    updated_accounts: Optional[List[str]] = None,
+) -> bool:
+    """Fallback implementation for save_access_tokens"""
+    return True
+
+
+def _fallback_save_id_tokens(
+    config: Dict[str, Any],
+    config_path: Optional[str] = None,
+    updated_accounts: Optional[List[str]] = None,
+) -> bool:
+    """Fallback implementation for save_id_tokens"""
+    return True
+
+
+def _fallback_save_quota_info(
+    config: Dict[str, Any],
+    account_name: str,
+    quota_data: Dict[str, Any],
+    config_path: Optional[str] = None,
+) -> bool:
+    """Fallback implementation for save_quota_info"""
+    return True
+
+
+def _fallback_is_jwt_expired(token: str) -> bool:
+    """Fallback implementation for is_jwt_expired"""
+    return False
+
+
+def _fallback_is_id_token_expired(expires_at: Union[int, float, str, None]) -> bool:
+    """Fallback implementation for is_id_token_expired"""
+    return False
+
+
+def _fallback_parse_jwt_expiration(token: str) -> Optional[float]:
+    """Fallback implementation for parse_jwt_expiration"""
+    return None
+
+
+def _fallback_refresh_expired_access_token(
+    account_name: str, config_path: Optional[str] = None, forced: bool = False
+) -> bool:
+    """Fallback implementation for refresh_expired_access_token"""
+    return True
+
+
+def _fallback_refresh_expired_access_tokens(
+    config_path: Optional[str] = None, forced: bool = False
+) -> bool:
+    """Fallback implementation for refresh_expired_access_tokens"""
+    return True
+
+
+def _fallback_refresh_expired_id_token(
+    account_name: str, config_path: Optional[str] = None, forced: bool = False
+) -> bool:
+    """Fallback implementation for refresh_expired_id_token"""
+    return True
+
+
+def _fallback_refresh_expired_id_tokens(
+    config_path: Optional[str] = None, forced: bool = False
+) -> bool:
+    """Fallback implementation for refresh_expired_id_tokens"""
+    return True
+
+
+def _fallback_check_quota_remaining(config_path: Optional[str] = None) -> bool:
+    """Fallback implementation for check_quota_remaining"""
+    return True
+
+
+# Try to import existing modules, use fallbacks if not available
 try:
-    # Import existing configuration modules
     from jetbrains_refresh_token.api.auth import (
         check_quota_remaining,
         refresh_expired_access_token,
@@ -26,7 +124,6 @@ try:
     from jetbrains_refresh_token.config.manager import (
         backup_config_file,
         list_accounts,
-        list_accounts_data,
         save_access_tokens,
         save_id_tokens,
         save_quota_info,
@@ -38,52 +135,26 @@ try:
     )
 except ImportError as e:
     print(f"Warning: Could not import existing modules: {e}")
+    # Use fallback implementations
+    load_config = _fallback_load_config
+    resolve_config_path = _fallback_resolve_config_path
+    backup_config_file = _fallback_backup_config_file
+    list_accounts = _fallback_list_accounts
+    save_access_tokens = _fallback_save_access_tokens
+    save_id_tokens = _fallback_save_id_tokens
+    save_quota_info = _fallback_save_quota_info
+    is_jwt_expired = _fallback_is_jwt_expired
+    is_id_token_expired = _fallback_is_id_token_expired
+    parse_jwt_expiration = _fallback_parse_jwt_expiration
+    refresh_expired_access_token = _fallback_refresh_expired_access_token
+    refresh_expired_access_tokens = _fallback_refresh_expired_access_tokens
+    refresh_expired_id_token = _fallback_refresh_expired_id_token
+    refresh_expired_id_tokens = _fallback_refresh_expired_id_tokens
+    check_quota_remaining = _fallback_check_quota_remaining
 
-    # Fallback implementations for development
-    def load_config(config_path=None):
-        return {"accounts": {}}
-
-    def resolve_config_path(config_path=None):
-        return Path("config.json")
-
-    def backup_config_file(config_path=None):
-        return True
-
-    def list_accounts(config_path=None):
+    # Create placeholder for missing functions
+    def list_accounts_data(config_path: Optional[str] = None) -> List[Dict[str, Any]]:
         return []
-
-    def save_access_tokens(config, config_path=None, updated_accounts=None):
-        return True
-
-    def save_id_tokens(config, config_path=None, updated_accounts=None):
-        return True
-
-    def save_quota_info(config, account_name, quota_data, config_path=None):
-        return True
-
-    def is_jwt_expired(token):
-        return False
-
-    def is_id_token_expired(expires_at):
-        return False
-
-    def parse_jwt_expiration(token):
-        return None
-
-    def refresh_expired_access_token(account_name, config_path=None, forced=False):
-        return True
-
-    def refresh_expired_access_tokens(config_path=None, forced=False):
-        return True
-
-    def refresh_expired_id_token(account_name, config_path=None, forced=False):
-        return True
-
-    def refresh_expired_id_tokens(config_path=None, forced=False):
-        return True
-
-    def check_quota_remaining(config_path=None):
-        return True
 
 
 class ConfigHelper:

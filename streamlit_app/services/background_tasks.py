@@ -4,17 +4,12 @@ Provides task management and monitoring capabilities
 """
 
 import json
-import sys
 import threading
 import time
 import uuid
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
-
-# Add project root to path
-PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
+from typing import Any, Callable, Dict, List, Optional, Union
 
 
 class TaskStatus:
@@ -35,8 +30,8 @@ class BackgroundTask:
         task_id: str,
         name: str,
         func: Callable,
-        args: tuple = None,
-        kwargs: dict = None,
+        args: Optional[tuple] = None,
+        kwargs: Optional[dict] = None,
         priority: int = 0,
     ):
         self.task_id = task_id
@@ -142,8 +137,18 @@ class BackgroundTasks:
             self.worker_threads.append(worker)
 
         if self.state_manager:
+            # Get session_id safely
+            session_id = 'system'
+            try:
+                import streamlit as st
+                session_id = st.session_state.get('session_id', 'system')
+            except:
+                session_id = 'system'
+            
             self.state_manager.log_action(
-                "Background workers started", f"Started {self.max_workers} worker threads"
+                session_id,
+                "Background workers started",
+                f"Started {self.max_workers} worker threads"
             )
 
     def stop_workers(self):
@@ -151,8 +156,18 @@ class BackgroundTasks:
         self.running = False
 
         if self.state_manager:
+            # Get session_id safely
+            session_id = 'system'
+            try:
+                import streamlit as st
+                session_id = st.session_state.get('session_id', 'system')
+            except:
+                session_id = 'system'
+            
             self.state_manager.log_action(
-                "Background workers stopped", f"Stopped {len(self.worker_threads)} worker threads"
+                session_id,
+                "Background workers stopped",
+                f"Stopped {len(self.worker_threads)} worker threads"
             )
 
         self.worker_threads = []
@@ -186,7 +201,19 @@ class BackgroundTasks:
 
             except Exception as e:
                 if self.state_manager:
-                    self.state_manager.log_action(f"Worker {worker_id} error", f"Error: {str(e)}")
+                    # Get session_id safely
+                    session_id = 'system'
+                    try:
+                        import streamlit as st
+                        session_id = st.session_state.get('session_id', 'system')
+                    except:
+                        session_id = 'system'
+                    
+                    self.state_manager.log_action(
+                        session_id,
+                        f"Worker {worker_id} error",
+                        f"Error: {str(e)}"
+                    )
                 time.sleep(1)
 
     def _get_next_task(self) -> Optional[BackgroundTask]:
@@ -216,7 +243,7 @@ class BackgroundTasks:
                 self.task_history = self.task_history[-self.max_history :]
 
     def add_task(
-        self, name: str, func: Callable, args: tuple = None, kwargs: dict = None, priority: int = 0
+        self, name: str, func: Callable, args: Optional[tuple] = None, kwargs: Optional[dict] = None, priority: int = 0
     ) -> str:
         """Add a new background task"""
         task_id = str(uuid.uuid4())
@@ -230,8 +257,18 @@ class BackgroundTasks:
             self.task_queue.append(task)
 
         if self.state_manager:
+            # Get session_id safely
+            session_id = 'system'
+            try:
+                import streamlit as st
+                session_id = st.session_state.get('session_id', 'system')
+            except:
+                session_id = 'system'
+            
             self.state_manager.log_action(
-                f"Added background task: {name}", f"Task ID: {task_id}, Priority: {priority}"
+                session_id,
+                f"Added background task: {name}",
+                f"Task ID: {task_id}, Priority: {priority}"
             )
 
         return task_id
@@ -269,8 +306,18 @@ class BackgroundTasks:
                 success = task.cancel()
 
                 if success and self.state_manager:
+                    # Get session_id safely
+                    session_id = 'system'
+                    try:
+                        import streamlit as st
+                        session_id = st.session_state.get('session_id', 'system')
+                    except:
+                        session_id = 'system'
+                    
                     self.state_manager.log_action(
-                        f"Cancelled task: {task.name}", f"Task ID: {task_id}"
+                        session_id,
+                        f"Cancelled task: {task.name}",
+                        f"Task ID: {task_id}"
                     )
 
                 return success
@@ -302,8 +349,11 @@ class BackgroundTasks:
                 'status_distribution': status_counts,
             }
 
-    def refresh_access_tokens_task(self, account_name: str = None, forced: bool = False):
+    def refresh_access_tokens_task(self, account_name: Optional[str] = None, forced: bool = False):
         """Background task to refresh access tokens"""
+        if self.config_helper is None:
+            return False
+            
         if account_name:
             # Refresh specific account
             return self.config_helper.refresh_account_access_token(account_name, forced)
@@ -311,8 +361,11 @@ class BackgroundTasks:
             # Refresh all accounts
             return self.config_helper.refresh_all_access_tokens(forced)
 
-    def refresh_id_tokens_task(self, account_name: str = None, forced: bool = False):
+    def refresh_id_tokens_task(self, account_name: Optional[str] = None, forced: bool = False):
         """Background task to refresh ID tokens"""
+        if self.config_helper is None:
+            return False
+            
         if account_name:
             # Refresh specific account
             return self.config_helper.refresh_account_id_token(account_name, forced)
@@ -320,8 +373,11 @@ class BackgroundTasks:
             # Refresh all accounts
             return self.config_helper.refresh_all_id_tokens(forced)
 
-    def check_quotas_task(self, account_name: str = None):
+    def check_quotas_task(self, account_name: Optional[str] = None):
         """Background task to check quotas"""
+        if self.config_helper is None:
+            return False
+            
         if account_name:
             # Check specific account quota
             accounts = self.config_helper.get_accounts()
@@ -335,10 +391,12 @@ class BackgroundTasks:
 
     def backup_config_task(self):
         """Background task to backup configuration"""
+        if self.config_helper is None:
+            return False
         return self.config_helper.backup_config()
 
     def add_refresh_access_tokens_task(
-        self, account_name: str = None, forced: bool = False, priority: int = 5
+        self, account_name: Optional[str] = None, forced: bool = False, priority: int = 5
     ):
         """Add refresh access tokens task"""
         task_name = f"Refresh Access Tokens"
@@ -353,7 +411,7 @@ class BackgroundTasks:
         )
 
     def add_refresh_id_tokens_task(
-        self, account_name: str = None, forced: bool = False, priority: int = 5
+        self, account_name: Optional[str] = None, forced: bool = False, priority: int = 5
     ):
         """Add refresh ID tokens task"""
         task_name = f"Refresh ID Tokens"
@@ -367,7 +425,7 @@ class BackgroundTasks:
             priority=priority,
         )
 
-    def add_check_quotas_task(self, account_name: str = None, priority: int = 3):
+    def add_check_quotas_task(self, account_name: Optional[str] = None, priority: int = 3):
         """Add check quotas task"""
         task_name = f"Check Quotas"
         if account_name:
@@ -392,8 +450,18 @@ class BackgroundTasks:
             self.task_history = []
 
         if self.state_manager:
+            # Get session_id safely
+            session_id = 'system'
+            try:
+                import streamlit as st
+                session_id = st.session_state.get('session_id', 'system')
+            except:
+                session_id = 'system'
+            
             self.state_manager.log_action(
-                "Task history cleared", f"Cleared at {datetime.now().isoformat()}"
+                session_id,
+                "Task history cleared",
+                f"Cleared at {datetime.now().isoformat()}"
             )
 
     def get_active_tasks_by_status(self, status: str) -> List[Dict[str, Any]]:

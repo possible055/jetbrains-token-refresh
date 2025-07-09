@@ -5,6 +5,7 @@ Main application entry point with multi-page navigation
 
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING, Optional
 
 import streamlit as st
 
@@ -14,18 +15,26 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from streamlit_app.pages import accounts, dashboard, quotas, settings, tokens
 from streamlit_app.utils.config_helper import ConfigHelper
-
-# Import custom modules
 from streamlit_app.utils.state_manager import PersistentStateManager
 
-# Import services
+# Import services with proper type checking
+if TYPE_CHECKING:
+    from streamlit_app.services.background_tasks import BackgroundTasks as BackgroundTasksClass
+    from streamlit_app.services.scheduler_service import SchedulerService as SchedulerServiceClass
+
+# Runtime imports for services
+BackgroundTasksClass = None
+SchedulerServiceClass = None
+SERVICES_AVAILABLE = False
+
 try:
-    from streamlit_app.services.scheduler_service import SchedulerService
-    from streamlit_app.services.background_tasks import BackgroundTasks
+    from streamlit_app.services.background_tasks import BackgroundTasks as BackgroundTasksClass
+    from streamlit_app.services.scheduler_service import SchedulerService as SchedulerServiceClass
+
     SERVICES_AVAILABLE = True
-except ImportError:
+except ImportError as e:
     SERVICES_AVAILABLE = False
-    print("Warning: Background services not available")
+    print(f"Warning: Background services not available: {e}")
 
 # Page configuration
 st.set_page_config(
@@ -89,21 +98,25 @@ def initialize_app():
 
     # Initialize persistent state
     st.session_state.state_manager.init_session_state()
-    
+
     # Initialize background services if available
-    if SERVICES_AVAILABLE:
+    if (
+        SERVICES_AVAILABLE
+        and BackgroundTasksClass is not None
+        and SchedulerServiceClass is not None
+    ):
         if 'scheduler_service' not in st.session_state:
-            st.session_state.scheduler_service = SchedulerService(
+            st.session_state.scheduler_service = SchedulerServiceClass(
                 config_helper=st.session_state.config_helper,
-                state_manager=st.session_state.state_manager
+                state_manager=st.session_state.state_manager,
             )
-            
+
         if 'background_tasks' not in st.session_state:
-            st.session_state.background_tasks = BackgroundTasks(
+            st.session_state.background_tasks = BackgroundTasksClass(
                 config_helper=st.session_state.config_helper,
-                state_manager=st.session_state.state_manager
+                state_manager=st.session_state.state_manager,
             )
-            
+
         # Start scheduler if not already running
         if not st.session_state.scheduler_service.is_running:
             st.session_state.scheduler_service.start()
@@ -147,14 +160,18 @@ def render_sidebar():
             st.sidebar.error("配置檔案: 錯誤")
     except Exception as e:
         st.sidebar.error(f"配置檔案: 無法讀取 ({str(e)})")
-    
+
     # Background services status
-    if SERVICES_AVAILABLE:
-        scheduler_status = st.session_state.scheduler_service.get_status()
-        if scheduler_status['running']:
-            st.sidebar.success(f"背景服務: 運行中 ({scheduler_status['jobs_count']} 個任務)")
+    if SERVICES_AVAILABLE and 'scheduler_service' in st.session_state:
+        scheduler_service = st.session_state.scheduler_service
+        if scheduler_service is not None:
+            scheduler_status = scheduler_service.get_status()
+            if scheduler_status['running']:
+                st.sidebar.success(f"背景服務: 運行中 ({scheduler_status['jobs_count']} 個任務)")
+            else:
+                st.sidebar.warning("背景服務: 已停止")
         else:
-            st.sidebar.warning("背景服務: 已停止")
+            st.sidebar.info("背景服務: 未啟用")
     else:
         st.sidebar.info("背景服務: 未啟用")
 

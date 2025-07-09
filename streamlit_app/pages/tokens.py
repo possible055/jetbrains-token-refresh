@@ -64,10 +64,19 @@ def render_auto_refresh_control():
         if st.button("🔄 立即刷新", key="manual_refresh"):
             st.rerun()
 
-    # Auto-refresh logic
+    # Auto-refresh logic (using placeholder instead of blocking sleep)
     if auto_refresh:
-        time.sleep(st.session_state.get('refresh_interval', 30))
-        st.rerun()
+        refresh_placeholder = st.empty()
+        with refresh_placeholder:
+            st.info(f"🔄 自動刷新啟用 - 每 {st.session_state.get('refresh_interval', 30)} 秒更新")
+        
+        # Use session state to track last refresh time
+        current_time = time.time()
+        last_refresh_time = st.session_state.get('last_token_refresh', 0)
+        
+        if current_time - last_refresh_time >= st.session_state.get('refresh_interval', 30):
+            st.session_state.last_token_refresh = current_time
+            st.rerun()
 
 
 def render_token_overview(config_helper):

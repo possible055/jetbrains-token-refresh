@@ -9,22 +9,82 @@ import threading
 import time
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Protocol
+
+# Import streamlit for session state access
+try:
+    import streamlit as st
+
+    STREAMLIT_AVAILABLE = True
+except ImportError:
+    STREAMLIT_AVAILABLE = False
+    st = None
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+
+# Define protocols for type safety
+class JobProtocol(Protocol):
+    """Protocol for job objects"""
+
+    id: str
+    name: str
+    func: Callable
+    trigger: Any
+    next_run_time: Optional[datetime]
+    max_instances: int
+    misfire_grace_time: int
+
+
+class EventProtocol(Protocol):
+    """Protocol for event objects"""
+
+    job_id: str
+    scheduled_run_time: datetime
+    exception: Optional[Exception]
+
+
+class TriggerProtocol(Protocol):
+    """Protocol for trigger objects"""
+
+    pass
+
+
+class SchedulerProtocol(Protocol):
+    """Protocol for scheduler objects"""
+
+    def start(self) -> None: ...
+    def shutdown(self) -> None: ...
+    def add_job(self, *args, **kwargs) -> None: ...
+    def get_jobs(self) -> List[JobProtocol]: ...
+    def add_listener(self, func: Callable, event_type: str) -> None: ...
+    def remove_job(self, job_id: str) -> None: ...
+    def pause_job(self, job_id: str) -> None: ...
+    def resume_job(self, job_id: str) -> None: ...
+    def modify_job(self, job_id: str, **changes) -> None: ...
+
+
+# Import APScheduler with proper type handling
+APSCHEDULER_AVAILABLE = False
+EVENT_JOB_EXECUTED = "job_executed"
+EVENT_JOB_ERROR = "job_error"
+
 try:
     from apscheduler.events import EVENT_JOB_ERROR, EVENT_JOB_EXECUTED
-    from apscheduler.schedulers.background import BackgroundScheduler
-    from apscheduler.triggers.cron import CronTrigger
-    from apscheduler.triggers.interval import IntervalTrigger
+    from apscheduler.schedulers.background import BackgroundScheduler  # type: ignore
+    from apscheduler.triggers.cron import CronTrigger  # type: ignore
+    from apscheduler.triggers.interval import IntervalTrigger  # type: ignore
+
+    APSCHEDULER_AVAILABLE = True
+
 except ImportError:
-    # Fallback for development
+    # Fallback implementations when APScheduler is not available
     class BackgroundScheduler:
         def __init__(self):
             self.running = False
+            self._jobs: List[Any] = []
 
         def start(self):
             self.running = True
@@ -60,9 +120,6 @@ except ImportError:
     class CronTrigger:
         def __init__(self, **kwargs):
             pass
-
-    EVENT_JOB_EXECUTED = "job_executed"
-    EVENT_JOB_ERROR = "job_error"
 
 
 class SchedulerService:
@@ -101,8 +158,17 @@ class SchedulerService:
 
         # Log to state manager if available
         if self.state_manager:
+            session_id = 'system'
+            if STREAMLIT_AVAILABLE and st is not None:
+                try:
+                    session_id = st.session_state.get('session_id', 'system')
+                except:
+                    session_id = 'system'
+
             self.state_manager.log_action(
-                f"Job {event.job_id} completed", f"Scheduled time: {event.scheduled_run_time}"
+                session_id,
+                f"Job {event.job_id} completed",
+                f"Scheduled time: {event.scheduled_run_time}",
             )
 
     def _job_error_listener(self, event):
@@ -119,7 +185,16 @@ class SchedulerService:
 
         # Log to state manager if available
         if self.state_manager:
-            self.state_manager.log_action(f"Job {event.job_id} failed", f"Error: {event.exception}")
+            session_id = 'system'
+            if STREAMLIT_AVAILABLE and st is not None:
+                try:
+                    session_id = st.session_state.get('session_id', 'system')
+                except:
+                    session_id = 'system'
+
+            self.state_manager.log_action(
+                session_id, f"Job {event.job_id} failed", f"Error: {event.exception}"
+            )
 
     def _add_job_history(self, job_info: Dict[str, Any]):
         """Add job execution to history"""
@@ -137,8 +212,15 @@ class SchedulerService:
                 self.is_running = True
 
                 if self.state_manager:
+                    session_id = 'system'
+                    if STREAMLIT_AVAILABLE and st is not None:
+                        try:
+                            session_id = st.session_state.get('session_id', 'system')
+                        except:
+                            session_id = 'system'
+
                     self.state_manager.log_action(
-                        "Scheduler started", "Background scheduler service started"
+                        session_id, "Scheduler started", "Background scheduler service started"
                     )
 
                 return True
@@ -155,8 +237,15 @@ class SchedulerService:
                 self.is_running = False
 
                 if self.state_manager:
+                    session_id = 'system'
+                    if STREAMLIT_AVAILABLE and st is not None:
+                        try:
+                            session_id = st.session_state.get('session_id', 'system')
+                        except:
+                            session_id = 'system'
+
                     self.state_manager.log_action(
-                        "Scheduler stopped", "Background scheduler service stopped"
+                        session_id, "Scheduler stopped", "Background scheduler service stopped"
                     )
 
                 return True
@@ -169,9 +258,9 @@ class SchedulerService:
         self,
         func: Callable,
         job_id: str,
-        seconds: int = None,
-        minutes: int = None,
-        hours: int = None,
+        seconds: Optional[int] = None,
+        minutes: Optional[int] = None,
+        hours: Optional[int] = None,
         **kwargs,
     ) -> bool:
         """Add interval-based job"""
@@ -185,9 +274,16 @@ class SchedulerService:
             )
 
             if self.state_manager:
+                session_id = 'system'
+                if STREAMLIT_AVAILABLE and st is not None:
+                    try:
+                        session_id = st.session_state.get('session_id', 'system')
+                    except:
+                        session_id = 'system'
+
                 interval_str = f"{hours or 0}h {minutes or 0}m {seconds or 0}s"
                 self.state_manager.log_action(
-                    f"Added interval job: {job_id}", f"Interval: {interval_str}"
+                    session_id, f"Added interval job: {job_id}", f"Interval: {interval_str}"
                 )
 
             return True
@@ -196,7 +292,12 @@ class SchedulerService:
             return False
 
     def add_cron_job(
-        self, func: Callable, job_id: str, hour: int = None, minute: int = None, **kwargs
+        self,
+        func: Callable,
+        job_id: str,
+        hour: Optional[int] = None,
+        minute: Optional[int] = None,
+        **kwargs,
     ) -> bool:
         """Add cron-based job"""
         try:
@@ -209,8 +310,17 @@ class SchedulerService:
             )
 
             if self.state_manager:
+                session_id = 'system'
+                if STREAMLIT_AVAILABLE and st is not None:
+                    try:
+                        session_id = st.session_state.get('session_id', 'system')
+                    except:
+                        session_id = 'system'
+
                 cron_str = f"{hour or '*'}:{minute or '*'}"
-                self.state_manager.log_action(f"Added cron job: {job_id}", f"Schedule: {cron_str}")
+                self.state_manager.log_action(
+                    session_id, f"Added cron job: {job_id}", f"Schedule: {cron_str}"
+                )
 
             return True
         except Exception as e:
@@ -223,7 +333,14 @@ class SchedulerService:
             self.scheduler.remove_job(job_id)
 
             if self.state_manager:
-                self.state_manager.log_action(f"Removed job: {job_id}", None)
+                session_id = 'system'
+                if STREAMLIT_AVAILABLE and st is not None:
+                    try:
+                        session_id = st.session_state.get('session_id', 'system')
+                    except:
+                        session_id = 'system'
+
+                self.state_manager.log_action(session_id, f"Removed job: {job_id}", None)
 
             return True
         except Exception as e:
@@ -279,7 +396,9 @@ class SchedulerService:
         self.add_interval_job(
             func=self._refresh_access_tokens_job,
             job_id="auto_refresh_access_tokens",
+            seconds=0,
             minutes=30,
+            hours=0,
             max_instances=1,
         )
 
@@ -287,13 +406,20 @@ class SchedulerService:
         self.add_interval_job(
             func=self._refresh_id_tokens_job,
             job_id="auto_refresh_id_tokens",
+            seconds=0,
+            minutes=0,
             hours=4,
             max_instances=1,
         )
 
         # Check quotas every hour
         self.add_interval_job(
-            func=self._check_quotas_job, job_id="auto_check_quotas", hours=1, max_instances=1
+            func=self._check_quotas_job,
+            job_id="auto_check_quotas",
+            seconds=0,
+            minutes=0,
+            hours=1,
+            max_instances=1
         )
 
         # Backup config daily at 2 AM
@@ -308,61 +434,184 @@ class SchedulerService:
     def _refresh_access_tokens_job(self):
         """Background job to refresh access tokens"""
         try:
-            success = self.config_helper.refresh_all_access_tokens()
+            if self.config_helper is not None:
+                success = self.config_helper.refresh_all_access_tokens()
 
-            if self.state_manager:
-                status = "Success" if success else "Failed"
-                self.state_manager.log_action(
-                    f"Auto refresh access tokens: {status}",
-                    f"Timestamp: {datetime.now().isoformat()}",
-                )
+                if self.state_manager:
+                    session_id = 'system'
+                    if STREAMLIT_AVAILABLE and st is not None:
+                        try:
+                            session_id = st.session_state.get('session_id', 'system')
+                        except:
+                            session_id = 'system'
+
+                    status = "Success" if success else "Failed"
+                    self.state_manager.log_action(
+                        session_id,
+                        f"Auto refresh access tokens: {status}",
+                        f"Timestamp: {datetime.now().isoformat()}",
+                    )
+            else:
+                if self.state_manager:
+                    session_id = 'system'
+                    if STREAMLIT_AVAILABLE and st is not None:
+                        try:
+                            session_id = st.session_state.get('session_id', 'system')
+                        except:
+                            session_id = 'system'
+
+                    self.state_manager.log_action(
+                        session_id,
+                        "Auto refresh access tokens: Error",
+                        "Config helper not available",
+                    )
         except Exception as e:
             if self.state_manager:
+                session_id = 'system'
+                if STREAMLIT_AVAILABLE and st is not None:
+                    try:
+                        session_id = st.session_state.get('session_id', 'system')
+                    except:
+                        session_id = 'system'
+
                 self.state_manager.log_action(
-                    "Auto refresh access tokens: Error", f"Error: {str(e)}"
+                    session_id, "Auto refresh access tokens: Error", f"Error: {str(e)}"
                 )
 
     def _refresh_id_tokens_job(self):
         """Background job to refresh ID tokens"""
         try:
-            success = self.config_helper.refresh_all_id_tokens()
+            if self.config_helper is not None:
+                success = self.config_helper.refresh_all_id_tokens()
 
-            if self.state_manager:
-                status = "Success" if success else "Failed"
-                self.state_manager.log_action(
-                    f"Auto refresh ID tokens: {status}", f"Timestamp: {datetime.now().isoformat()}"
-                )
+                if self.state_manager:
+                    session_id = 'system'
+                    if STREAMLIT_AVAILABLE and st is not None:
+                        try:
+                            session_id = st.session_state.get('session_id', 'system')
+                        except:
+                            session_id = 'system'
+
+                    status = "Success" if success else "Failed"
+                    self.state_manager.log_action(
+                        session_id,
+                        f"Auto refresh ID tokens: {status}",
+                        f"Timestamp: {datetime.now().isoformat()}",
+                    )
+            else:
+                if self.state_manager:
+                    session_id = 'system'
+                    if STREAMLIT_AVAILABLE and st is not None:
+                        try:
+                            session_id = st.session_state.get('session_id', 'system')
+                        except:
+                            session_id = 'system'
+
+                    self.state_manager.log_action(
+                        session_id, "Auto refresh ID tokens: Error", "Config helper not available"
+                    )
         except Exception as e:
             if self.state_manager:
-                self.state_manager.log_action("Auto refresh ID tokens: Error", f"Error: {str(e)}")
+                session_id = 'system'
+                if STREAMLIT_AVAILABLE and st is not None:
+                    try:
+                        session_id = st.session_state.get('session_id', 'system')
+                    except:
+                        session_id = 'system'
+
+                self.state_manager.log_action(
+                    session_id, "Auto refresh ID tokens: Error", f"Error: {str(e)}"
+                )
 
     def _check_quotas_job(self):
         """Background job to check quotas"""
         try:
-            success = self.config_helper.check_all_quotas()
+            if self.config_helper is not None:
+                success = self.config_helper.check_all_quotas()
 
-            if self.state_manager:
-                status = "Success" if success else "Failed"
-                self.state_manager.log_action(
-                    f"Auto check quotas: {status}", f"Timestamp: {datetime.now().isoformat()}"
-                )
+                if self.state_manager:
+                    session_id = 'system'
+                    if STREAMLIT_AVAILABLE and st is not None:
+                        try:
+                            session_id = st.session_state.get('session_id', 'system')
+                        except:
+                            session_id = 'system'
+
+                    status = "Success" if success else "Failed"
+                    self.state_manager.log_action(
+                        session_id,
+                        f"Auto check quotas: {status}",
+                        f"Timestamp: {datetime.now().isoformat()}",
+                    )
+            else:
+                if self.state_manager:
+                    session_id = 'system'
+                    if STREAMLIT_AVAILABLE and st is not None:
+                        try:
+                            session_id = st.session_state.get('session_id', 'system')
+                        except:
+                            session_id = 'system'
+
+                    self.state_manager.log_action(
+                        session_id, "Auto check quotas: Error", "Config helper not available"
+                    )
         except Exception as e:
             if self.state_manager:
-                self.state_manager.log_action("Auto check quotas: Error", f"Error: {str(e)}")
+                session_id = 'system'
+                if STREAMLIT_AVAILABLE and st is not None:
+                    try:
+                        session_id = st.session_state.get('session_id', 'system')
+                    except:
+                        session_id = 'system'
+
+                self.state_manager.log_action(
+                    session_id, "Auto check quotas: Error", f"Error: {str(e)}"
+                )
 
     def _backup_config_job(self):
         """Background job to backup configuration"""
         try:
-            success = self.config_helper.backup_config()
+            if self.config_helper is not None:
+                success = self.config_helper.backup_config()
 
-            if self.state_manager:
-                status = "Success" if success else "Failed"
-                self.state_manager.log_action(
-                    f"Auto backup config: {status}", f"Timestamp: {datetime.now().isoformat()}"
-                )
+                if self.state_manager:
+                    session_id = 'system'
+                    if STREAMLIT_AVAILABLE and st is not None:
+                        try:
+                            session_id = st.session_state.get('session_id', 'system')
+                        except:
+                            session_id = 'system'
+
+                    status = "Success" if success else "Failed"
+                    self.state_manager.log_action(
+                        session_id,
+                        f"Auto backup config: {status}",
+                        f"Timestamp: {datetime.now().isoformat()}",
+                    )
+            else:
+                if self.state_manager:
+                    session_id = 'system'
+                    if STREAMLIT_AVAILABLE and st is not None:
+                        try:
+                            session_id = st.session_state.get('session_id', 'system')
+                        except:
+                            session_id = 'system'
+
+                    self.state_manager.log_action(
+                        session_id, "Auto backup config: Error", "Config helper not available"
+                    )
         except Exception as e:
             if self.state_manager:
-                self.state_manager.log_action("Auto backup config: Error", f"Error: {str(e)}")
+                session_id = 'system'
+                if STREAMLIT_AVAILABLE and st is not None:
+                    try:
+                        session_id = st.session_state.get('session_id', 'system')
+                    except:
+                        session_id = 'system'
+
+                self.state_manager.log_action(
+                    session_id, "Auto backup config: Error", f"Error: {str(e)}"
+                )
 
     def pause_job(self, job_id: str) -> bool:
         """Pause a specific job"""
@@ -370,8 +619,15 @@ class SchedulerService:
             self.scheduler.pause_job(job_id)
 
             if self.state_manager:
+                session_id = 'system'
+                if STREAMLIT_AVAILABLE and st is not None:
+                    try:
+                        session_id = st.session_state.get('session_id', 'system')
+                    except:
+                        session_id = 'system'
+
                 self.state_manager.log_action(
-                    f"Paused job: {job_id}", f"Timestamp: {datetime.now().isoformat()}"
+                    session_id, f"Paused job: {job_id}", f"Timestamp: {datetime.now().isoformat()}"
                 )
 
             return True
@@ -385,8 +641,15 @@ class SchedulerService:
             self.scheduler.resume_job(job_id)
 
             if self.state_manager:
+                session_id = 'system'
+                if STREAMLIT_AVAILABLE and st is not None:
+                    try:
+                        session_id = st.session_state.get('session_id', 'system')
+                    except:
+                        session_id = 'system'
+
                 self.state_manager.log_action(
-                    f"Resumed job: {job_id}", f"Timestamp: {datetime.now().isoformat()}"
+                    session_id, f"Resumed job: {job_id}", f"Timestamp: {datetime.now().isoformat()}"
                 )
 
             return True
@@ -400,7 +663,16 @@ class SchedulerService:
             self.scheduler.modify_job(job_id, **changes)
 
             if self.state_manager:
-                self.state_manager.log_action(f"Modified job: {job_id}", f"Changes: {changes}")
+                session_id = 'system'
+                if STREAMLIT_AVAILABLE and st is not None:
+                    try:
+                        session_id = st.session_state.get('session_id', 'system')
+                    except:
+                        session_id = 'system'
+
+                self.state_manager.log_action(
+                    session_id, f"Modified job: {job_id}", f"Changes: {changes}"
+                )
 
             return True
         except Exception as e:
