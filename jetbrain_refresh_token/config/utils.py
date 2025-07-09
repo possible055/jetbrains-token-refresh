@@ -1,8 +1,53 @@
+import base64
+import json
 import time
+from typing import Optional
 
 import jwt
 
-from jetbrain_refresh_token.config.config import parse_jwt_expiration
+from jetbrain_refresh_token.config import logger
+
+
+def parse_jwt_expiration(token: str) -> Optional[int]:
+    """
+    Parse the expiration time from a JWT token.
+
+    Args:
+        jwt_token (str): JWT token string.
+
+    Returns:
+        Optional[int]: The expiration time as a UNIX timestamp, or None if it cannot be parsed.
+    """
+    try:
+        # A JWT token consists of three parts separated by dots: header.payload.signature
+        parts = token.split('.')
+        if len(parts) != 3:
+            logger.error("Invalid JWT token format: expected 3 parts")
+            return None
+
+        # Decode the payload part (base64url encoded)
+        # Padding characters '=' may need to be added
+        payload = parts[1]
+        payload_padded = payload + '=' * (4 - len(payload) % 4) if len(payload) % 4 else payload
+
+        try:
+            decoded_bytes = base64.urlsafe_b64decode(payload_padded)
+            payload_data = json.loads(decoded_bytes.decode('utf-8'))
+        # pylint: disable=broad-exception-caught
+        except Exception as e:
+            logger.error("Failed to decode JWT payload: %s", e)
+            return None
+
+        # Extract the expiration time (exp claim) from the payload
+        if 'exp' in payload_data:
+            return payload_data['exp']
+
+        logger.warning("JWT token does not contain expiration time (exp claim)")
+        return None
+    # pylint: disable=broad-exception-caught
+    except Exception as e:
+        logger.error("Error parsing JWT token: %s", e)
+        return None
 
 
 def is_vaild_jwt_format(token):
