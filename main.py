@@ -37,7 +37,7 @@ def launch_web_ui(port: int = 8501):
         "--server.port",
         str(port),
         "--server.headless",
-        "false",
+        "true",
         "--browser.gatherUsageStats",
         "false",
     ]
