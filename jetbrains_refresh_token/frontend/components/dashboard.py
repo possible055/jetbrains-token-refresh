@@ -6,7 +6,7 @@ import streamlit as st
 
 def render():
     """Render the dashboard page"""
-    st.markdown('<h1 class="main-header">🏠 主控台</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">控制台</h1>', unsafe_allow_html=True)
 
     # Get configuration helper
     config_helper = st.session_state.get('config_helper')
@@ -35,7 +35,7 @@ def render():
 
 def render_system_overview(config_helper):
     """Render system overview cards"""
-    st.subheader("🔍 系統概覽")
+    st.subheader("系统概览")
 
     # Get system info
     system_info = config_helper.get_system_info()
@@ -48,8 +48,8 @@ def render_system_overview(config_helper):
         st.markdown(
             f"""
         <div class="status-card">
-            <h3>📁 配置檔案</h3>
-            <p><strong>狀態:</strong> {'✅ 正常' if system_info.get('config_exists', False) else '❌ 不存在'}</p>
+            <h4>📁 配置档案</h4>
+            <p><strong>状态:</strong> {'✅ 正常' if system_info.get('config_exists', False) else '❌ 不存在'}</p>
             <p><strong>大小:</strong> {system_info.get('config_size', 0)} bytes</p>
         </div>
         """,
@@ -60,9 +60,9 @@ def render_system_overview(config_helper):
         st.markdown(
             f"""
         <div class="status-card">
-            <h3>👥 帳戶總數</h3>
-            <p><strong>總計:</strong> {len(accounts)}</p>
-            <p><strong>活躍:</strong> {sum(1 for acc in accounts if acc['status'] == '🟢 正常')}</p>
+            <h4>👥 帐号总数</h4>
+            <p><strong>总计:</strong> {len(accounts)}</p>
+            <p><strong>活跃:</strong> {sum(1 for acc in accounts if acc['status'] == '🟢 正常')}</p>
         </div>
         """,
             unsafe_allow_html=True,
@@ -73,9 +73,9 @@ def render_system_overview(config_helper):
         st.markdown(
             f"""
         <div class="{'warning-card' if expired_tokens > 0 else 'status-card'}">
-            <h3>🔑 Token 狀態</h3>
+            <h4>🔑 金钥状态</h4>
             <p><strong>正常:</strong> {len(accounts) - expired_tokens}</p>
-            <p><strong>過期:</strong> {expired_tokens}</p>
+            <p><strong>过期:</strong> {expired_tokens}</p>
         </div>
         """,
             unsafe_allow_html=True,
@@ -87,9 +87,9 @@ def render_system_overview(config_helper):
         st.markdown(
             f"""
         <div class="status-card">
-            <h3>🔄 最後更新</h3>
-            <p><strong>狀態:</strong> {'🟢 已同步' if last_refresh else '⚪ 未同步'}</p>
-            <p><strong>時間:</strong> {refresh_time}</p>
+            <h4>🔄 最后更新</h4>
+            <p><strong>状态:</strong> {'🟢 已同步' if last_refresh else '⚪ 未同步'}</p>
+            <p><strong>时间:</strong> {refresh_time}</p>
         </div>
         """,
             unsafe_allow_html=True,
@@ -98,13 +98,13 @@ def render_system_overview(config_helper):
 
 def render_warnings_section(config_helper):
     """Render warnings and alerts section"""
-    st.subheader("⚠️ 警告與提醒")
+    st.subheader("警告与提醒")
 
     accounts = config_helper.get_accounts()
     warnings = generate_warnings(accounts)
 
     if not warnings:
-        st.success("✅ 沒有警告訊息，所有系統運作正常")
+        st.success("✅ 所有系统运作正常")
     else:
         for warning in warnings:
             warning_type = warning['type']
@@ -115,7 +115,7 @@ def render_warnings_section(config_helper):
                 st.markdown(
                     f"""
                 <div class="error-card">
-                    <strong>❌ 錯誤</strong> - {account}<br>
+                    <strong>❌ 错误</strong> - {account}<br>
                     {message}
                 </div>
                 """,
@@ -135,16 +135,16 @@ def render_warnings_section(config_helper):
 
 def render_statistics_section(config_helper):
     """Render statistics section"""
-    st.subheader("📊 統計資訊")
+    st.subheader("统计资讯")
 
     accounts = config_helper.get_accounts()
 
     if not accounts:
-        st.info("📝 尚無帳戶資料")
+        st.info("📝 尚无帐户资料")
         return
 
     # Create tabs for different statistics
-    tab1, tab2, tab3 = st.tabs(["Token 狀態", "配額使用", "帳戶活動"])
+    tab1, tab2, tab3 = st.tabs(["金钥状态", "配额使用", "帐户活动"])
 
     with tab1:
         render_token_statistics(accounts)
@@ -165,9 +165,9 @@ def render_token_statistics(accounts: List[Dict[str, Any]]):
         access_expired = sum(1 for acc in accounts if acc['access_token_expired'])
         access_valid = len(accounts) - access_expired
 
-        st.write("**Access Token 狀態**")
+        st.write("**Access Token 状态**")
         st.write(f"🟢 有效: {access_valid}")
-        st.write(f"🔴 過期: {access_expired}")
+        st.write(f"🔴 过期: {access_expired}")
 
         # Simple progress bar simulation
         if len(accounts) > 0:
@@ -181,7 +181,7 @@ def render_quota_statistics(accounts: List[Dict[str, Any]]):
     quota_accounts = [acc for acc in accounts if acc.get('quota_info')]
 
     if not quota_accounts:
-        st.info("📊 尚無配額資訊")
+        st.info("📊 尚无配额资讯")
         return
 
     # Calculate quota statistics
@@ -203,10 +203,10 @@ def render_quota_statistics(accounts: List[Dict[str, Any]]):
         st.metric("🟡 警告", warning_accounts)
 
     with col3:
-        st.metric("🔴 危險", critical_accounts)
+        st.metric("🔴 危险", critical_accounts)
 
     # Quota usage details
-    st.write("**配額使用詳情**")
+    st.write("**配额使用详情**")
     for account in quota_accounts:
         quota_info = account['quota_info']
         usage = quota_info.get('usage_percentage', 0)
@@ -221,7 +221,7 @@ def render_quota_statistics(accounts: List[Dict[str, Any]]):
 
 def render_activity_statistics(accounts: List[Dict[str, Any]]):
     """Render account activity statistics"""
-    st.write("**帳戶活動統計**")
+    st.write("**帐户活动统计**")
 
     # Show account creation times
     current_time = datetime.now()
@@ -231,27 +231,27 @@ def render_activity_statistics(accounts: List[Dict[str, Any]]):
             created_dt = datetime.fromtimestamp(created_time)
             days_old = (current_time - created_dt).days
             st.write(
-                f"👤 {account['name']}: 建立於 {created_dt.strftime('%Y-%m-%d')} ({days_old} 天前)"
+                f"👤 {account['name']}: 建立于 {created_dt.strftime('%Y-%m-%d')} ({days_old} 天前)"
             )
         else:
-            st.write(f"👤 {account['name']}: 建立時間未知")
+            st.write(f"👤 {account['name']}: 建立时间未知")
 
 
 def render_recent_operations():
     """Render recent operations section"""
-    st.subheader("📋 最近操作")
+    st.subheader("最近操作")
 
     # Get session logs from state manager
     state_manager = st.session_state.get('state_manager')
     if not state_manager:
-        st.info("📝 無操作記錄")
+        st.info("📝 无操作记录")
         return
 
     session_id = st.session_state.get('session_id', '')
     logs = state_manager.get_session_logs(session_id, limit=10)
 
     if not logs:
-        st.info("📝 本次會話尚無操作記錄")
+        st.info("📝 本次会话尚无操作记录")
         return
 
     for action, details, timestamp in logs:
@@ -274,7 +274,7 @@ def generate_warnings(accounts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 {
                     'type': 'error',
                     'account': account_name,
-                    'message': 'Access Token 已過期，需要立即刷新',
+                    'message': 'Access Token 已过期，需要立即刷新',
                 }
             )
 
@@ -287,7 +287,7 @@ def generate_warnings(accounts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 {
                     'type': 'error',
                     'account': account_name,
-                    'message': f'配額使用率過高 ({quota_info.get("usage_percentage", 0):.1f}%)',
+                    'message': f'配额使用率过高 ({quota_info.get("usage_percentage", 0):.1f}%)',
                 }
             )
         elif quota_status == 'warning':
@@ -295,7 +295,7 @@ def generate_warnings(accounts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 {
                     'type': 'warning',
                     'account': account_name,
-                    'message': f'配額使用率偏高 ({quota_info.get("usage_percentage", 0):.1f}%)',
+                    'message': f'配额使用率偏高 ({quota_info.get("usage_percentage", 0):.1f}%)',
                 }
             )
 
@@ -310,7 +310,7 @@ def generate_warnings(accounts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                     {
                         'type': 'warning',
                         'account': account_name,
-                        'message': f'Access Token 將在 {time_until_expiry.seconds // 60} 分鐘後過期',
+                        'message': f'Access Token 将在 {time_until_expiry.seconds // 60} 分钟后过期',
                     }
                 )
 
@@ -320,7 +320,7 @@ def generate_warnings(accounts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
 # Quick action buttons
 def render_quick_actions():
     """Render quick action buttons"""
-    st.subheader("⚡ 快速操作")
+    st.subheader("快速操作")
 
     col1, col2, col3 = st.columns(3)
 
@@ -334,28 +334,28 @@ def render_quick_actions():
                         st.success("✅ 所有 Access Token 刷新成功")
                         st.session_state.last_refresh = datetime.now()
                     else:
-                        st.error("❌ 部分 Access Token 刷新失敗")
+                        st.error("❌ 部分 Access Token 刷新失败")
 
     with col2:
-        if st.button("📊 檢查所有配額", key="check_all_quotas"):
+        if st.button("📊 检查所有配额", key="check_all_quotas"):
             config_helper = st.session_state.get('config_helper')
             if config_helper:
-                with st.spinner("正在檢查配額..."):
+                with st.spinner("正在检查配额..."):
                     success = config_helper.check_all_quotas()
                     if success:
-                        st.success("✅ 所有配額檢查完成")
+                        st.success("✅ 所有配额检查完成")
                         st.session_state.last_refresh = datetime.now()
                     else:
-                        st.error("❌ 部分配額檢查失敗")
+                        st.error("❌ 部分配额检查失败")
 
     with col3:
         # Backup configuration button (separate row)
-        if st.button("💾 備份配置", key="backup_config"):
+        if st.button("💾 备份配置", key="backup_config"):
             config_helper = st.session_state.get('config_helper')
             if config_helper:
-                with st.spinner("正在備份配置..."):
+                with st.spinner("正在备份配置..."):
                     success = config_helper.backup_config()
                     if success:
-                        st.success("✅ 配置備份成功")
+                        st.success("✅ 配置备份成功")
                     else:
-                        st.error("❌ 配置備份失敗")
+                        st.error("❌ 配置备份失败")

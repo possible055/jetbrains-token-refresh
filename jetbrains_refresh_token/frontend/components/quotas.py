@@ -214,9 +214,9 @@ def render_account_quota_details(account: Dict[str, Any], config_helper):
                 else:
                     st.error("❌ 配額檢查失敗")
 
-        # Quota history (if available)
-        st.subheader("📋 配額歷史")
-        st.info("配額歷史功能開發中...")
+        # # Quota history (if available)
+        # st.subheader("📋 配額歷史")
+        # st.info("配額歷史功能開發中...")
 
 
 def render_quota_alerts(config_helper):

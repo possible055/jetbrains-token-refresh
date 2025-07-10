@@ -397,8 +397,8 @@ class SchedulerService:
             func=self._refresh_access_tokens_job,
             job_id="auto_refresh_access_tokens",
             seconds=0,
-            minutes=30,
-            hours=0,
+            minutes=0,
+            hours=23,
             max_instances=1,
         )
 
@@ -407,8 +407,8 @@ class SchedulerService:
             func=self._check_quotas_job,
             job_id="auto_check_quotas",
             seconds=0,
-            minutes=0,
-            hours=1,
+            minutes=2,
+            hours=0,
             max_instances=1,
         )
 

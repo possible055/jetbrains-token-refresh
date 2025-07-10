@@ -6,7 +6,7 @@ import streamlit as st
 
 def render():
     """Render the accounts management page"""
-    st.markdown('<h1 class="main-header">👤 帳戶管理</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">帐号管理</h1>', unsafe_allow_html=True)
 
     # Get configuration helper
     config_helper = st.session_state.get('config_helper')
@@ -15,7 +15,7 @@ def render():
         return
 
     # Create tabs for different operations
-    tab1, tab2, tab3 = st.tabs(["📋 帳戶列表", "➕ 新增帳戶", "⚙️ 批次操作"])
+    tab1, tab2, tab3 = st.tabs(["📋 帐号列表", "➕ 新增帐号", "⚙️ 批次操作"])
 
     with tab1:
         render_accounts_list(config_helper)
@@ -29,33 +29,33 @@ def render():
 
 def render_accounts_list(config_helper):
     """Render the accounts list with management options"""
-    st.subheader("📋 帳戶列表")
+    st.subheader("📋 帐号列表")
 
     # Get accounts
     accounts = config_helper.get_accounts()
 
     if not accounts:
-        st.info("📝 尚無帳戶資料，請先新增帳戶")
+        st.info("📝 尚无帐号资料，请先新增帐号")
         return
 
     # Search and filter options
     col1, col2 = st.columns([3, 1])
 
     with col1:
-        search_term = st.text_input("🔍 搜尋帳戶", placeholder="輸入帳戶名稱進行搜尋")
+        search_term = st.text_input("🔍 搜寻帐号", placeholder="输入帐号名称进行搜寻")
 
     with col2:
-        status_filter = st.selectbox("篩選狀態", ["全部", "🟢 正常", "🟡 警告", "🔴 錯誤"])
+        status_filter = st.selectbox("筛选状态", ["全部", "🟢 正常", "🟡 警告", "🔴 错误"])
 
     # Filter accounts
     filtered_accounts = filter_accounts(accounts, search_term, status_filter)
 
     if not filtered_accounts:
-        st.warning("🔍 沒有找到符合條件的帳戶")
+        st.warning("🔍 没有找到符合条件的帐号")
         return
 
     # Display accounts
-    st.write(f"共 {len(filtered_accounts)} 個帳戶")
+    st.write(f"共 {len(filtered_accounts)} 个帐号")
 
     for account in filtered_accounts:
         render_account_card(account, config_helper)

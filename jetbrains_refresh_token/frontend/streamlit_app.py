@@ -139,11 +139,11 @@ def render_sidebar():
 
     # Navigation menu
     pages = {
-        "🏠 主控台": "dashboard",
-        "👤 帳戶管理": "accounts",
-        "🔑 金鑰監控": "tokens",
-        "📊 配額管理": "quotas",
-        "⚙️ 設定": "settings",
+        "🏠 控制台": "dashboard",
+        "👤 帐户管理": "accounts",
+        "🔑 金钥监控": "tokens",
+        "📊 配额管理": "quotas",
+        "⚙️ 设定": "settings",
     }
 
     # Get current page from session state
@@ -159,17 +159,17 @@ def render_sidebar():
     st.sidebar.markdown("---")
 
     # System status in sidebar
-    st.sidebar.subheader("系統狀態")
+    st.sidebar.subheader("系统状态")
 
     # Load config status
     try:
         config_status = st.session_state.config_helper.get_config_status()
         if config_status['valid']:
-            st.sidebar.success(f"配置檔案: 正常 ({config_status['accounts_count']} 個帳戶)")
+            st.sidebar.success(f"配置档案: 正常 ({config_status['accounts_count']} 个帐号)")
         else:
-            st.sidebar.error("配置檔案: 錯誤")
+            st.sidebar.error("配置档案: 错误")
     except Exception as e:
-        st.sidebar.error(f"配置檔案: 無法讀取 ({str(e)})")
+        st.sidebar.error(f"配置档案: 无法读取 ({str(e)})")
 
     # Background services status
     if SERVICES_AVAILABLE and 'scheduler_service' in st.session_state:
@@ -177,16 +177,16 @@ def render_sidebar():
         if scheduler_service is not None:
             scheduler_status = scheduler_service.get_status()
             if scheduler_status['running']:
-                st.sidebar.success(f"背景服務: 運行中 ({scheduler_status['jobs_count']} 個任務)")
+                st.sidebar.success(f"背景服务: 运行中 ({scheduler_status['jobs_count']} 个任务)")
             else:
-                st.sidebar.warning("背景服務: 已停止")
+                st.sidebar.warning("背景服务: 已停止")
         else:
-            st.sidebar.info("背景服務: 未啟用")
+            st.sidebar.info("背景服务: 未启用")
     else:
-        st.sidebar.info("背景服務: 未啟用")
+        st.sidebar.info("背景服务: 未启用")
 
     # Quick actions
-    st.sidebar.subheader("快速操作")
+    st.sidebar.subheader("快捷操作")
 
     col1, col2 = st.sidebar.columns(2)
     with col1:
@@ -198,9 +198,9 @@ def render_sidebar():
         if st.button("💾", key="backup"):
             success = st.session_state.config_helper.backup_config()
             if success:
-                st.sidebar.success("備份成功")
+                st.sidebar.success("备份成功")
             else:
-                st.sidebar.error("備份失敗")
+                st.sidebar.error("备份失败")
 
 
 def render_main_content():
@@ -218,7 +218,7 @@ def render_main_content():
     elif current_page == 'settings':
         settings.render()
     else:
-        st.error(f"未知頁面: {current_page}")
+        st.error(f"未知页面: {current_page}")
 
 
 def main():

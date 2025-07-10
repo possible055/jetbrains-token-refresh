@@ -7,7 +7,7 @@ import streamlit as st
 
 def render():
     """Render the tokens monitoring page"""
-    st.markdown('<h1 class="main-header">🔑 Token 監控</h1>', unsafe_allow_html=True)
+    st.markdown('<h1 class="main-header">金钥监控</h1>', unsafe_allow_html=True)
 
     # Get configuration helper
     config_helper = st.session_state.get('config_helper')
@@ -30,13 +30,13 @@ def render():
 
 def render_auto_refresh_control():
     """Render auto-refresh control"""
-    st.subheader("🔄 自動刷新設定")
+    st.subheader("🔄 自动刷新设定")
 
     col1, col2, col3 = st.columns([2, 2, 1])
 
     with col1:
         auto_refresh = st.checkbox(
-            "啟用自動刷新",
+            "启用自动刷新",
             value=st.session_state.get('auto_refresh_enabled', True),
             key='auto_refresh_toggle',
         )
@@ -45,15 +45,15 @@ def render_auto_refresh_control():
     with col2:
         if auto_refresh:
             refresh_interval = st.slider(
-                "刷新間隔（秒）",
-                min_value=10,
+                "刷新间隔（秒）",
+                min_value=30,
                 max_value=300,
                 value=st.session_state.get('refresh_interval', 30),
                 key='refresh_interval_slider',
             )
             st.session_state.refresh_interval = refresh_interval
         else:
-            st.write("自動刷新已停用")
+            st.write("自动刷新已停用")
 
     with col3:
         if st.button("🔄 立即刷新", key="manual_refresh"):
@@ -63,7 +63,7 @@ def render_auto_refresh_control():
     if auto_refresh:
         refresh_placeholder = st.empty()
         with refresh_placeholder:
-            st.info(f"🔄 自動刷新啟用 - 每 {st.session_state.get('refresh_interval', 30)} 秒更新")
+            st.info(f"🔄 自动刷新启用 - 每 {st.session_state.get('refresh_interval', 30)} 秒更新")
 
         # Use session state to track last refresh time
         current_time = time.time()
@@ -76,12 +76,12 @@ def render_auto_refresh_control():
 
 def render_token_overview(config_helper):
     """Render token status overview"""
-    st.subheader("📊 Token 狀態概覽")
+    st.subheader("📊 金钥状态概览")
 
     accounts = config_helper.get_accounts()
 
     if not accounts:
-        st.info("📝 尚無帳戶資料")
+        st.info("📝 尚无帐号资料")
         return
 
     # Calculate statistics
@@ -92,11 +92,11 @@ def render_token_overview(config_helper):
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.metric("總帳戶數", total_accounts, help="系統中的總帳戶數量")
+        st.metric("总帐号数", total_accounts, help="系统中的总帐号数量")
 
     with col2:
         st.metric(
-            "Access Token 過期",
+            "Access Token 过期",
             access_expired,
             delta=f"{access_expired}/{total_accounts}",
             delta_color="inverse",
@@ -105,7 +105,7 @@ def render_token_overview(config_helper):
     with col3:
         healthy_accounts = total_accounts - access_expired
         st.metric(
-            "健康帳戶",
+            "健康帐户",
             healthy_accounts,
             delta=f"{healthy_accounts}/{total_accounts}",
             delta_color="normal",
@@ -117,7 +117,7 @@ def render_token_overview(config_helper):
 
 def render_expiration_timeline(accounts: List[Dict[str, Any]]):
     """Render token expiration timeline"""
-    st.subheader("⏰ Token 過期時間軸")
+    st.subheader("⏰ 金钥过期时间轴")
 
     now = datetime.now()
     upcoming_expirations = []
@@ -143,7 +143,7 @@ def render_expiration_timeline(accounts: List[Dict[str, Any]]):
     upcoming_expirations.sort(key=lambda x: x['expires_at'])
 
     if not upcoming_expirations:
-        st.info("📅 沒有即將過期的 Token")
+        st.info("📅 没有即将过期的金钥")
         return
 
     # Display timeline
@@ -155,24 +155,24 @@ def render_expiration_timeline(accounts: List[Dict[str, Any]]):
         time_str = format_time_delta(exp['time_until'])
 
         getattr(st, urgency_color)(
-            f"🕐 {exp['account']} - {exp['token_type']} 將在 {time_str} 後過期 "
+            f"🕐 {exp['account']} - {exp['token_type']} 将在 {time_str} 后过期 "
             f"({exp['expires_at'].strftime('%Y-%m-%d %H:%M:%S')})"
         )
 
 
 def render_token_details(config_helper):
     """Render detailed token information"""
-    st.subheader("🔍 Token 詳細資訊")
+    st.subheader("🔍 金钥详细资讯")
 
     accounts = config_helper.get_accounts()
 
     if not accounts:
-        st.info("📝 尚無帳戶資料")
+        st.info("📝 尚无帐号资料")
         return
 
     # Account selection
     account_names = [acc['name'] for acc in accounts]
-    selected_account = st.selectbox("選擇帳戶", account_names, key="token_detail_account_select")
+    selected_account = st.selectbox("选择帐号", account_names, key="token_detail_account_select")
 
     if not selected_account:
         return
@@ -180,7 +180,7 @@ def render_token_details(config_helper):
     # Find selected account
     account = next((acc for acc in accounts if acc['name'] == selected_account), None)
     if not account:
-        st.error("找不到選定的帳戶")
+        st.error("找不到选定的帐号")
         return
 
     # Display token details
@@ -189,7 +189,7 @@ def render_token_details(config_helper):
 
 def render_account_token_details(account: Dict[str, Any], config_helper):
     """Render token details for specific account"""
-    st.write(f"**帳戶:** {account['name']}")
+    st.write(f"**帐号:** {account['name']}")
 
     # Display Access Token details
     render_access_token_details(account, config_helper)
@@ -197,27 +197,27 @@ def render_account_token_details(account: Dict[str, Any], config_helper):
 
 def render_access_token_details(account: Dict[str, Any], config_helper):
     """Render access token details"""
-    st.subheader("🔑 Access Token 詳細資訊")
+    st.subheader("🔑 Access Token 详细资讯")
 
     # Token status
-    status = "🔴 過期" if account['access_token_expired'] else "🟢 正常"
-    st.write(f"**狀態:** {status}")
+    status = "🔴 过期" if account['access_token_expired'] else "🟢 正常"
+    st.write(f"**状态:** {status}")
 
     # Expiration time
     if account['access_expires_at']:
         expires_dt = datetime.fromtimestamp(account['access_expires_at'])
-        st.write(f"**過期時間:** {expires_dt.strftime('%Y-%m-%d %H:%M:%S')}")
+        st.write(f"**过期时间:** {expires_dt.strftime('%Y-%m-%d %H:%M:%S')}")
 
         # Time until expiration
         now = datetime.now()
         time_until = expires_dt - now
 
         if time_until > timedelta(0):
-            st.write(f"**剩餘時間:** {format_time_delta(time_until)}")
+            st.write(f"**剩余时间:** {format_time_delta(time_until)}")
         else:
-            st.write("**剩餘時間:** 已過期")
+            st.write("**剩余时间:** 已過期")
     else:
-        st.write("**過期時間:** 未知")
+        st.write("**过期时间:** 未知")
 
     # Refresh button
     col1, col2 = st.columns([1, 3])
