@@ -38,6 +38,7 @@ def requests_post(
         backoff_factor=2,
         status_forcelist=[429, 500, 502, 503, 504],
         allowed_methods=["POST"],
+        raise_on_status=False,  # Don't raise exceptions for HTTP error status codes
     )
 
     session = requests.Session()
@@ -45,15 +46,23 @@ def requests_post(
 
     try:
         logger.info("Sending request with up to 3 retries configured.")
+        logger.debug("Request URL: %s", url)
+        logger.debug("Request headers: %s", headers)
+        logger.debug("Request data: %s", data)
         response = session.post(
             url,
             headers=headers,
             data=data,
             timeout=timeout,
         )
+        logger.debug("Response status code: %s", response.status_code)
+        logger.debug("Response headers: %s", dict(response.headers))
+        if response.status_code >= 400:
+            logger.debug("Response text: %s", response.text)
         return response
     except requests.RequestException as e:
         logger.error("Error persists after multiple retries: %s", e)
+        logger.error("Exception type: %s", type(e).__name__)
         return None
 
 
@@ -86,11 +95,11 @@ def request_id_token(refresh_token: str) -> Optional[Dict[str, str]]:
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
         "Accept": "application/json",
-        "User-Agent": random_ua,
+        # "User-Agent": random_ua,
     }
 
-    response = requests_post(OAUTH_URL, data, headers, 10)
-    if not response:
+    response = requests_post(OAUTH_URL, headers, data, 10)
+    if response is None:
         logger.error("Request failed: no response.")
         return None
 
@@ -130,6 +139,17 @@ def request_id_token(refresh_token: str) -> Optional[Dict[str, str]]:
     logger.error(
         "Request failed with status code: %s. Response: %s", response.status_code, response.text
     )
+
+    # Try to parse error details from JSON response
+    try:
+        error_data = response.json()
+        if "error" in error_data:
+            logger.error("Error type: %s", error_data["error"])
+        if "error_description" in error_data:
+            logger.error("Error description: %s", error_data["error_description"])
+    except (ValueError, json.JSONDecodeError):
+        logger.debug("Could not parse error response as JSON")
+
     return None
 
 
@@ -154,7 +174,7 @@ def request_access_token(id_token: str, license_id: str) -> Optional[Dict]:
     }
 
     response = requests_post(JWT_AUTH_URL, headers=headers, data=json.dumps(payload), timeout=10)
-    if not response:
+    if response is None:
         logger.error("Request failed: no response.")
         return None
 
@@ -205,7 +225,7 @@ def request_quota_info(access_token: str, grazie_agent: Optional[Dict] = None) -
         headers["grazie-agent"] = json.dumps(default_grazie_agent)
 
     response = requests_post(JWT_QUOTA_URL, headers=headers, timeout=10)
-    if not response:
+    if response is None:
         logger.error("Request failed: no response.")
         return None
 
