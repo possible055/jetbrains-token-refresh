@@ -21,7 +21,7 @@ except ImportError:
     st = None
 
 # Add project root to path
-PROJECT_ROOT = Path(__file__).parent.parent.parent
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 
@@ -419,7 +419,7 @@ class SchedulerService:
             seconds=0,
             minutes=0,
             hours=1,
-            max_instances=1
+            max_instances=1,
         )
 
         # Backup config daily at 2 AM

@@ -341,7 +341,7 @@ def render_token_history():
     logs = state_manager.get_session_logs(session_id, limit=50)
 
     if not logs:
-        st.info("📝 本次會話尚無 Token 操作記錄")
+        st.info("📝 本次會話尚無操作記錄")
         return
 
     # Filter token-related logs

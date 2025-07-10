@@ -9,18 +9,23 @@ from typing import TYPE_CHECKING, Optional
 
 import streamlit as st
 
+from jetbrains_refresh_token.frontend.pages import accounts, dashboard, quotas, settings, tokens
+from jetbrains_refresh_token.frontend.utils.config_helper import ConfigHelper
+from jetbrains_refresh_token.frontend.utils.state_manager import PersistentStateManager
+
 # Add the project root to Python path
-PROJECT_ROOT = Path(__file__).parent.parent
+PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from streamlit_app.pages import accounts, dashboard, quotas, settings, tokens
-from streamlit_app.utils.config_helper import ConfigHelper
-from streamlit_app.utils.state_manager import PersistentStateManager
 
 # Import services with proper type checking
 if TYPE_CHECKING:
-    from streamlit_app.services.background_tasks import BackgroundTasks as BackgroundTasksClass
-    from streamlit_app.services.scheduler_service import SchedulerService as SchedulerServiceClass
+    from jetbrains_refresh_token.frontend.services.background_tasks import (
+        BackgroundTasks as BackgroundTasksClass,
+    )
+    from jetbrains_refresh_token.frontend.services.scheduler_service import (
+        SchedulerService as SchedulerServiceClass,
+    )
 
 # Runtime imports for services
 BackgroundTasksClass = None
@@ -28,8 +33,12 @@ SchedulerServiceClass = None
 SERVICES_AVAILABLE = False
 
 try:
-    from streamlit_app.services.background_tasks import BackgroundTasks as BackgroundTasksClass
-    from streamlit_app.services.scheduler_service import SchedulerService as SchedulerServiceClass
+    from jetbrains_refresh_token.frontend.services.background_tasks import (
+        BackgroundTasks as BackgroundTasksClass,
+    )
+    from jetbrains_refresh_token.frontend.services.scheduler_service import (
+        SchedulerService as SchedulerServiceClass,
+    )
 
     SERVICES_AVAILABLE = True
 except ImportError as e:

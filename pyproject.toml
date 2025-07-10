@@ -45,6 +45,7 @@ classifiers = [
 
 [project.scripts]
 jetbrains_refresh_token = "jetbrains_refresh_token.main:main"
+jetbrains_frontend = "jetbrains_refresh_token.frontend.main:main"
 
 [project.urls]
 Source = "https://github.com/possible055/jetbrains_refresh_token"

@@ -15,7 +15,7 @@ import streamlit as st
 class PersistentStateManager:
     """Manages persistent state for the Streamlit application"""
 
-    def __init__(self, db_path: str = "streamlit_app/data/app_state.db"):
+    def __init__(self, db_path: str = "jetbrains_refresh_token/frontend/data/app_state.db"):
         self.db_path = Path(db_path)
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self.init_database()

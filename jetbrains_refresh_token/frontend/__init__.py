@@ -1,6 +1,6 @@
 """
-Streamlit Application for JetBrains Token Manager
-A web-based interface for managing JetBrains OAuth tokens, quotas, and accounts
+JetBrains Token Manager - Streamlit Frontend
+Web-based interface for managing JetBrains OAuth tokens
 """
 
 __version__ = "1.0.0"
