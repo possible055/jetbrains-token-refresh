@@ -1,0 +1,36 @@
+services:
+  jetbrains-proxy:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: jetbrains-proxy
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./config.json:/app/config.json:ro
+      - ./jetbrainsai.json:/app/jetbrainsai.json
+      - ./logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # 外部服務範例 - 可以同時掛載相同的 jetbrainsai.json 文件
+  external-service:
+    image: your-external-service-image
+    container_name: jetbrains-external-service
+    ports:
+      - "8000:8000"
+    volumes:
+      # 同一個文件可以掛載到多個容器
+      - ./jetbrainsai.json:/app/jetbrainsai.json:ro
+    depends_on:
+      - jetbrains-proxy
+    restart: unless-stopped
+
+networks:
+  default:
+    name: jetbrains-network
