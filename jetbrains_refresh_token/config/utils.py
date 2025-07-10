@@ -58,20 +58,6 @@ def is_vaild_jwt_format(token):
         return False
 
 
-def is_id_token_expired(expired_at: int) -> bool:
-    """
-    Check whether the ID token has expired.
-
-    Args:
-        expired_at (int): Expiration time as a UNIX timestamp.
-
-    Returns:
-        bool: True if the token is expired, False otherwise.
-    """
-    current_time = int(time.time())
-    return current_time >= expired_at or (expired_at - current_time) < 300
-
-
 def is_jwt_expired(token: str) -> bool:
     """
     Check whether the JWT token for the specified account has expired.

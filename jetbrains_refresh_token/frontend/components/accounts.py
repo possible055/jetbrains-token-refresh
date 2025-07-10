@@ -1,8 +1,3 @@
-"""
-Accounts Page - Account management for JetBrains Token Manager
-Handles account creation, editing, deletion, and viewing
-"""
-
 from datetime import datetime
 from typing import Any, Dict, List
 
@@ -80,19 +75,13 @@ def render_account_card(account: Dict[str, Any], config_helper):
             # Token status
             st.write("**Token 狀態:**")
             access_status = "🔴 過期" if account['access_token_expired'] else "🟢 正常"
-            id_status = "🔴 過期" if account['id_token_expired'] else "🟢 正常"
 
             st.write(f"- Access Token: {access_status}")
-            st.write(f"- ID Token: {id_status}")
 
             # Expiration times
             if account['access_expires_at']:
                 expires_dt = datetime.fromtimestamp(account['access_expires_at'])
                 st.write(f"- Access Token 過期時間: {expires_dt.strftime('%Y-%m-%d %H:%M:%S')}")
-
-            if account['id_token_expires_at']:
-                expires_dt = datetime.fromtimestamp(account['id_token_expires_at'])
-                st.write(f"- ID Token 過期時間: {expires_dt.strftime('%Y-%m-%d %H:%M:%S')}")
 
             # Quota information
             quota_info = account.get('quota_info', {})
@@ -123,15 +112,6 @@ def render_account_card(account: Dict[str, Any], config_helper):
                         st.rerun()
                     else:
                         st.error("❌ Access Token 刷新失敗")
-
-            if st.button("🔄 刷新 ID Token", key=f"refresh_id_{account['name']}"):
-                with st.spinner("正在刷新 ID Token..."):
-                    success = config_helper.refresh_account_id_token(account['name'])
-                    if success:
-                        st.success("✅ ID Token 刷新成功")
-                        st.rerun()
-                    else:
-                        st.error("❌ ID Token 刷新失敗")
 
             if st.button("📊 檢查配額", key=f"check_quota_{account['name']}"):
                 with st.spinner("正在檢查配額..."):
@@ -169,9 +149,6 @@ def render_edit_account_modal(account: Dict[str, Any], config_helper):
         account_data = config.get('accounts', {}).get(account['name'], {})
 
         license_id = st.text_input("License ID", value=account_data.get('license_id', ''))
-        id_token = st.text_input(
-            "ID Token", value=account_data.get('id_token', ''), type='password'
-        )
         refresh_token = st.text_input(
             "Refresh Token", value=account_data.get('refresh_token', ''), type='password'
         )
@@ -180,11 +157,10 @@ def render_edit_account_modal(account: Dict[str, Any], config_helper):
 
         with col1:
             if st.form_submit_button("💾 儲存"):
-                if license_id and id_token and refresh_token:
+                if license_id and refresh_token:
                     success = config_helper.update_account(
                         account['name'],
                         license_id=license_id,
-                        id_token=id_token,
                         refresh_token=refresh_token,
                     )
                     if success:
@@ -235,7 +211,6 @@ def render_add_account(config_helper):
 
         account_name = st.text_input("帳戶名稱 *", placeholder="輸入帳戶名稱")
         license_id = st.text_input("License ID *", placeholder="輸入 JetBrains License ID")
-        id_token = st.text_input("ID Token *", type="password", placeholder="輸入 ID Token")
         refresh_token = st.text_input(
             "Refresh Token *", type="password", placeholder="輸入 Refresh Token"
         )
@@ -243,15 +218,13 @@ def render_add_account(config_helper):
         st.markdown("*為必填欄位")
 
         if st.form_submit_button("➕ 新增帳戶"):
-            if all([account_name, license_id, id_token, refresh_token]):
+            if all([account_name, license_id, refresh_token]):
                 # Check if account already exists
                 existing_accounts = config_helper.get_accounts()
                 if any(acc['name'] == account_name for acc in existing_accounts):
                     st.error("❌ 帳戶名稱已存在，請使用其他名稱")
                 else:
-                    success = config_helper.add_account(
-                        account_name, id_token, refresh_token, license_id
-                    )
+                    success = config_helper.add_account(account_name, refresh_token, license_id)
                     if success:
                         st.success("✅ 帳戶新增成功")
                         st.rerun()
@@ -265,9 +238,7 @@ def render_add_account(config_helper):
         st.write(
             """
         **License ID**: 您的 JetBrains 授權 ID
-        
-        **ID Token**: 從 JetBrains 帳戶獲取的 ID Token
-        
+                
         **Refresh Token**: 用於自動刷新 Token 的 Refresh Token
         
         **注意**: 請確保所有 Token 都是有效的，否則帳戶將無法正常工作。
@@ -307,7 +278,7 @@ def render_batch_operations(config_helper):
     st.write(f"已選擇 {len(selected_accounts)} 個帳戶")
 
     # Batch operations
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
 
     with col1:
         if st.button("🔄 批次刷新 Access Token", key="batch_refresh_access"):
@@ -326,22 +297,6 @@ def render_batch_operations(config_helper):
                 st.rerun()
 
     with col2:
-        if st.button("🔄 批次刷新 ID Token", key="batch_refresh_id"):
-            with st.spinner("正在批次刷新 ID Token..."):
-                success_count = 0
-                for account_name in selected_accounts:
-                    if config_helper.refresh_account_id_token(account_name):
-                        success_count += 1
-
-                if success_count == len(selected_accounts):
-                    st.success(f"✅ 所有 {len(selected_accounts)} 個帳戶的 ID Token 刷新成功")
-                else:
-                    st.warning(
-                        f"⚠️ {success_count}/{len(selected_accounts)} 個帳戶的 ID Token 刷新成功"
-                    )
-                st.rerun()
-
-    with col3:
         if st.button("📊 批次檢查配額", key="batch_check_quota"):
             with st.spinner("正在批次檢查配額..."):
                 success = config_helper.check_all_quotas()

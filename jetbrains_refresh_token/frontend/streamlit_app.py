@@ -1,8 +1,3 @@
-"""
-JetBrains Token Manager - Streamlit Frontend
-Main application entry point with multi-page navigation
-"""
-
 import sys
 from pathlib import Path
 from typing import TYPE_CHECKING
@@ -54,7 +49,7 @@ except ImportError as e:
 # Page configuration
 st.set_page_config(
     page_title="JetBrains Token Manager",
-    page_icon="🚀",
+    # page_icon="🚀",
     layout="wide",
     initial_sidebar_state="expanded",
 )
@@ -140,13 +135,13 @@ def initialize_app():
 
 def render_sidebar():
     """Render the sidebar navigation"""
-    st.sidebar.title("🚀 JetBrains Token Manager")
+    st.sidebar.title("Token Manager")
 
     # Navigation menu
     pages = {
         "🏠 主控台": "dashboard",
         "👤 帳戶管理": "accounts",
-        "🔑 Token 監控": "tokens",
+        "🔑 金鑰監控": "tokens",
         "📊 配額管理": "quotas",
         "⚙️ 設定": "settings",
     }
@@ -195,12 +190,12 @@ def render_sidebar():
 
     col1, col2 = st.sidebar.columns(2)
     with col1:
-        if st.button("🔄 重新整理", key="refresh"):
+        if st.button("🔄", key="refresh"):
             st.session_state.config_helper.refresh_config()
             st.rerun()
 
     with col2:
-        if st.button("💾 備份配置", key="backup"):
+        if st.button("💾", key="backup"):
             success = st.session_state.config_helper.backup_config()
             if success:
                 st.sidebar.success("備份成功")

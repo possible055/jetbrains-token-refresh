@@ -1,8 +1,3 @@
-"""
-Quotas Page - Quota monitoring and management for JetBrains Token Manager
-Displays quota usage, limits, and provides quota checking functionality
-"""
-
 import json
 from datetime import datetime
 from typing import Any, Dict, List

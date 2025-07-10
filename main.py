@@ -6,10 +6,12 @@ import streamlit.web.cli as stcli
 from jetbrains_refresh_token.api.auth import (
     refresh_expired_access_token,
     refresh_expired_access_tokens,
-    refresh_expired_id_token,
-    refresh_expired_id_tokens,
 )
-from jetbrains_refresh_token.config.manager import backup_config_file, list_accounts_data
+from jetbrains_refresh_token.config.manager import (
+    backup_config_file,
+    export_to_jetbrainsai_format,
+    list_accounts_data,
+)
 from jetbrains_refresh_token.constants import FRONTEND_APP_PATH
 from jetbrains_refresh_token.log_config import get_logger
 
@@ -56,15 +58,17 @@ def setup_argument_parser():
     parser.add_argument(
         '--refresh-all-access', action='store_true', help='Refresh JWT for all accounts'
     )
-    parser.add_argument(
-        '--refresh-auth', type=str, help='Refresh ID token for the specified account'
-    )
-    parser.add_argument(
-        '--refresh-all-auth', action='store_true', help='Refresh ID tokens for all accounts'
-    )
+
     parser.add_argument('--backup', action='store_true', help='Backup configuration file')
     parser.add_argument('--list', action='store_true', help='List all account information')
     parser.add_argument('--test', action='store_true', help='Run manual test functions')
+    parser.add_argument(
+        '--export-jetbrainsai',
+        type=str,
+        nargs='?',
+        const='jetbrainsai.json',
+        help='Export configuration to jetbrainsai.json format (optionally specify output path)',
+    )
     parser.add_argument(
         '--check-quota', action='store_true', help='Check quota remaining for all accounts'
     )
@@ -96,12 +100,11 @@ def main():
     if not (
         args.refresh_access
         or args.refresh_all_access
-        or args.refresh_auth
-        or args.refresh_all_auth
         or args.backup
         or args.list
         or args.test
         or args.check_quota
+        or args.export_jetbrainsai
     ):
         parser.print_help()
 
@@ -129,23 +132,6 @@ def main():
         else:
             logger.error("Some or all access tokens failed to refresh. Please check the logs.")
 
-    if args.refresh_auth:
-        success = refresh_expired_id_token(args.refresh_auth, args.config, forced=args.force)
-        if success:
-            logger.info("ID token for account '%s' refreshed successfully", args.refresh_auth)
-        else:
-            logger.error(
-                "Failed to refresh ID token for account '%s'. Please check the logs",
-                args.refresh_auth,
-            )
-
-    if args.refresh_all_auth:
-        success = refresh_expired_id_tokens(args.config, forced=args.force)
-        if success:
-            logger.info("All ID tokens refreshed successfully.")
-        else:
-            logger.error("Some or all ID tokens failed to refresh. Please check the logs.")
-
     if args.list:
         list_accounts_data(args.config)
 
@@ -158,6 +144,14 @@ def main():
 
     # if args.test:
     #     test_refresh(args.config)
+
+    if args.export_jetbrainsai:
+        logger.info("Exporting configuration to jetbrainsai format...")
+        success = export_to_jetbrainsai_format(args.config, args.export_jetbrainsai)
+        if success:
+            logger.info("Configuration exported successfully to: %s", args.export_jetbrainsai)
+        else:
+            logger.error("Failed to export configuration to jetbrainsai format")
 
 
 # 主程序入口

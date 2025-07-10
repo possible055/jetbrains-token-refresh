@@ -1,8 +1,3 @@
-"""
-Tokens Page - Token monitoring and management for JetBrains Token Manager
-Displays token status, expiration times, and provides manual refresh options
-"""
-
 import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
@@ -69,11 +64,11 @@ def render_auto_refresh_control():
         refresh_placeholder = st.empty()
         with refresh_placeholder:
             st.info(f"🔄 自動刷新啟用 - 每 {st.session_state.get('refresh_interval', 30)} 秒更新")
-        
+
         # Use session state to track last refresh time
         current_time = time.time()
         last_refresh_time = st.session_state.get('last_token_refresh', 0)
-        
+
         if current_time - last_refresh_time >= st.session_state.get('refresh_interval', 30):
             st.session_state.last_token_refresh = current_time
             st.rerun()
@@ -92,10 +87,9 @@ def render_token_overview(config_helper):
     # Calculate statistics
     total_accounts = len(accounts)
     access_expired = sum(1 for acc in accounts if acc['access_token_expired'])
-    id_expired = sum(1 for acc in accounts if acc['id_token_expired'])
 
     # Create overview cards
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
         st.metric("總帳戶數", total_accounts, help="系統中的總帳戶數量")
@@ -109,15 +103,7 @@ def render_token_overview(config_helper):
         )
 
     with col3:
-        st.metric(
-            "ID Token 過期",
-            id_expired,
-            delta=f"{id_expired}/{total_accounts}",
-            delta_color="inverse",
-        )
-
-    with col4:
-        healthy_accounts = total_accounts - max(access_expired, id_expired)
+        healthy_accounts = total_accounts - access_expired
         st.metric(
             "健康帳戶",
             healthy_accounts,
@@ -147,22 +133,6 @@ def render_expiration_timeline(accounts: List[Dict[str, Any]]):
                     {
                         'account': account['name'],
                         'token_type': 'Access Token',
-                        'expires_at': expires_dt,
-                        'time_until': time_until,
-                        'urgency': get_urgency_level(time_until),
-                    }
-                )
-
-        # Check ID token expiration
-        if account['id_token_expires_at']:
-            expires_dt = datetime.fromtimestamp(account['id_token_expires_at'])
-            time_until = expires_dt - now
-
-            if time_until > timedelta(0):  # Future expiration
-                upcoming_expirations.append(
-                    {
-                        'account': account['name'],
-                        'token_type': 'ID Token',
                         'expires_at': expires_dt,
                         'time_until': time_until,
                         'urgency': get_urgency_level(time_until),
@@ -221,14 +191,8 @@ def render_account_token_details(account: Dict[str, Any], config_helper):
     """Render token details for specific account"""
     st.write(f"**帳戶:** {account['name']}")
 
-    # Create tabs for different token types
-    tab1, tab2 = st.tabs(["🔑 Access Token", "🆔 ID Token"])
-
-    with tab1:
-        render_access_token_details(account, config_helper)
-
-    with tab2:
-        render_id_token_details(account, config_helper)
+    # Display Access Token details
+    render_access_token_details(account, config_helper)
 
 
 def render_access_token_details(account: Dict[str, Any], config_helper):
@@ -277,54 +241,6 @@ def render_access_token_details(account: Dict[str, Any], config_helper):
                     st.rerun()
                 else:
                     st.error("❌ Access Token 強制刷新失敗")
-
-
-def render_id_token_details(account: Dict[str, Any], config_helper):
-    """Render ID token details"""
-    st.subheader("🆔 ID Token 詳細資訊")
-
-    # Token status
-    status = "🔴 過期" if account['id_token_expired'] else "🟢 正常"
-    st.write(f"**狀態:** {status}")
-
-    # Expiration time
-    if account['id_token_expires_at']:
-        expires_dt = datetime.fromtimestamp(account['id_token_expires_at'])
-        st.write(f"**過期時間:** {expires_dt.strftime('%Y-%m-%d %H:%M:%S')}")
-
-        # Time until expiration
-        now = datetime.now()
-        time_until = expires_dt - now
-
-        if time_until > timedelta(0):
-            st.write(f"**剩餘時間:** {format_time_delta(time_until)}")
-        else:
-            st.write("**剩餘時間:** 已過期")
-    else:
-        st.write("**過期時間:** 未知")
-
-    # Refresh button
-    col1, col2 = st.columns([1, 3])
-
-    with col1:
-        if st.button("🔄 手動刷新", key=f"refresh_id_detail_{account['name']}"):
-            with st.spinner("正在刷新 ID Token..."):
-                success = config_helper.refresh_account_id_token(account['name'], forced=True)
-                if success:
-                    st.success("✅ ID Token 刷新成功")
-                    st.rerun()
-                else:
-                    st.error("❌ ID Token 刷新失敗")
-
-    with col2:
-        if st.button("🔄 強制刷新", key=f"force_refresh_id_detail_{account['name']}"):
-            with st.spinner("正在強制刷新 ID Token..."):
-                success = config_helper.refresh_account_id_token(account['name'], forced=True)
-                if success:
-                    st.success("✅ ID Token 強制刷新成功")
-                    st.rerun()
-                else:
-                    st.error("❌ ID Token 強制刷新失敗")
 
 
 def render_token_history():
@@ -428,13 +344,5 @@ def predict_next_refresh_time(account: Dict[str, Any]) -> datetime:
         access_refresh_time = access_expires - timedelta(minutes=5)
         if access_refresh_time > now:
             next_refresh = min(next_refresh, access_refresh_time)
-
-    # Check ID token expiration
-    if account['id_token_expires_at']:
-        id_expires = datetime.fromtimestamp(account['id_token_expires_at'])
-        # Refresh 5 minutes before expiration
-        id_refresh_time = id_expires - timedelta(minutes=5)
-        if id_refresh_time > now:
-            next_refresh = min(next_refresh, id_refresh_time)
 
     return next_refresh

@@ -22,13 +22,13 @@ def resolve_config_path(config_path: Optional[Union[str, Path]] = None) -> Path:
     """
 
     if config_path is None:
-        logger.info("Using default configuration path: %s", CONFIG_PATH)
+        logger.debug("Using default configuration path: %s", CONFIG_PATH)
         return CONFIG_PATH
     if isinstance(config_path, str):
         path_obj = Path(config_path)
-        logger.info("Using custom configuration path (converted from string): %s", path_obj)
+        logger.debug("Using custom configuration path (converted from string): %s", path_obj)
         return path_obj
-    logger.info("Using custom configuration path: %s", config_path)
+    logger.debug("Using custom configuration path: %s", config_path)
     return config_path
 
 
@@ -124,8 +124,6 @@ def validate_config_format(config: Dict) -> None:
         jwt_validations = [
             ("id_token", True),
             ("access_token", True),
-            ("previous_access_token", True),
-            ("previous_id_token", True),
         ]
 
         for field, allow_empty in jwt_validations:
@@ -137,8 +135,8 @@ def validate_config_format(config: Dict) -> None:
                     logger.error("Account '%s' field '%s' cannot be empty", account_name, field)
                     raise ValueError(f"Account '{account_name}' field '{field}' cannot be empty")
 
-                # Check for valid JWT format (skip JWT format check for previous_access_token)
-                if value and field != "previous_access_token" and not is_vaild_jwt_format(value):
+                # Check for valid JWT format when value is not empty
+                if value and not is_vaild_jwt_format(value):
                     logger.error(
                         "Account '%s' field '%s' has invalid JWT format", account_name, field
                     )

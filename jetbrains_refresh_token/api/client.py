@@ -2,17 +2,11 @@ import json
 from typing import Any, Dict, Optional
 
 import requests
-from fake_useragent import UserAgent
 from requests.adapters import HTTPAdapter
 from urllib3.util.retry import Retry
 
+from jetbrains_refresh_token.constants import JWT_AUTH_URL, JWT_QUOTA_URL
 from jetbrains_refresh_token.log_config import get_logger
-
-OAUTH_URL = "https://oauth.account.jetbrains.com/oauth2/token"
-JWT_AUTH_URL = "https://api.jetbrains.ai/auth/jetbrains-jwt/provide-access/license/v2"
-JWT_QUOTA_URL = "https://api.jetbrains.ai/user/v5/quota/get"
-CLIENT_ID = "ide"
-
 
 logger = get_logger("api.refresh_token")
 
@@ -66,93 +60,6 @@ def requests_post(
         return None
 
 
-def request_id_token(refresh_token: str) -> Optional[Dict[str, str]]:
-    """
-    Obtain new JetBrains OAuth tokens using a refresh token.
-
-    Args:
-        refresh_token (str): The refresh token used for token renewal
-
-    Returns:
-        Optional[Dict[str, str]]:
-            A dictionary containing "access_token", "id_token", and "refresh_token" on success;
-            otherwise, None.
-
-    Raises:
-        requests.RequestException: When HTTP requests fail after multiple retry attempts
-    """
-    ua = UserAgent(browsers=['Edge', 'Chrome', 'Firefox'])
-    random_ua = ua.random
-
-    logger.info("Refreshing access token with refresh token.")
-    logger.debug("User-Agent: %s", random_ua)
-
-    data = {
-        "grant_type": "refresh_token",
-        "refresh_token": refresh_token,
-        "client_id": CLIENT_ID,
-    }
-    headers = {
-        "Content-Type": "application/x-www-form-urlencoded",
-        "Accept": "application/json",
-        # "User-Agent": random_ua,
-    }
-
-    response = requests_post(OAUTH_URL, headers, data, 10)
-    if response is None:
-        logger.error("Request failed: no response.")
-        return None
-
-    if response.status_code == 200:
-        try:
-            token_data = response.json()
-
-            if not all(key in token_data for key in ["access_token", "id_token", "refresh_token"]):
-                logger.error("Required token information is missing from the response.")
-                return None
-
-            access_token = token_data["access_token"]
-            id_token = token_data["id_token"]
-            refresh_token = token_data["refresh_token"]
-
-            logger.info("Successfully obtained a new access token.")
-
-            if access_token:
-                logger.debug("access_token: %s***", access_token[:12])
-            if id_token:
-                logger.debug("id_token: %s***", id_token[:12])
-            if refresh_token:
-                logger.debug("refresh_token: %s***", refresh_token[:12])
-
-            return {
-                "access_token": access_token,
-                "id_token": id_token,
-                "refresh_token": refresh_token,
-            }
-        except (ValueError, json.JSONDecodeError) as e:
-            logger.error("Failed to parse JSON: %s", e)
-            return None
-        except KeyError as e:
-            logger.error("Required token field: %s", e)
-            return None
-
-    logger.error(
-        "Request failed with status code: %s. Response: %s", response.status_code, response.text
-    )
-
-    # Try to parse error details from JSON response
-    try:
-        error_data = response.json()
-        if "error" in error_data:
-            logger.error("Error type: %s", error_data["error"])
-        if "error_description" in error_data:
-            logger.error("Error description: %s", error_data["error_description"])
-    except (ValueError, json.JSONDecodeError):
-        logger.debug("Could not parse error response as JSON")
-
-    return None
-
-
 def request_access_token(id_token: str, license_id: str) -> Optional[Dict]:
     """
     Refreshes the JetBrains JWT token.
@@ -195,6 +102,19 @@ def request_access_token(id_token: str, license_id: str) -> Optional[Dict]:
     logger.error(
         "Request failed with status code: %s. Response: %s", response.status_code, response.text
     )
+
+    # Try to parse error details from JSON response
+    try:
+        error_data = response.json()
+        if "error" in error_data:
+            logger.error("Error type: %s", error_data["error"])
+        if "error_description" in error_data:
+            logger.error("Error description: %s", error_data["error_description"])
+        if "message" in error_data:
+            logger.error("Error message: %s", error_data["message"])
+    except (ValueError, json.JSONDecodeError):
+        logger.debug("Could not parse error response as JSON")
+
     return None
 
 
@@ -240,4 +160,17 @@ def request_quota_info(access_token: str, grazie_agent: Optional[Dict] = None) -
     logger.error(
         "Request failed with status code: %s. Response: %s", response.status_code, response.text
     )
+
+    # Try to parse error details from JSON response
+    try:
+        error_data = response.json()
+        if "error" in error_data:
+            logger.error("Error type: %s", error_data["error"])
+        if "error_description" in error_data:
+            logger.error("Error description: %s", error_data["error_description"])
+        if "message" in error_data:
+            logger.error("Error message: %s", error_data["message"])
+    except (ValueError, json.JSONDecodeError):
+        logger.debug("Could not parse error response as JSON")
+
     return None

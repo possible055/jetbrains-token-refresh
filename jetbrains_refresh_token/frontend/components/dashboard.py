@@ -1,8 +1,3 @@
-"""
-Dashboard Page - Main overview page for JetBrains Token Manager
-Displays system status, warnings, and quick statistics
-"""
-
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
@@ -79,8 +74,8 @@ def render_system_overview(config_helper):
             f"""
         <div class="{'warning-card' if expired_tokens > 0 else 'status-card'}">
             <h3>🔑 Token 狀態</h3>
-            <p><strong>過期:</strong> {expired_tokens}</p>
             <p><strong>正常:</strong> {len(accounts) - expired_tokens}</p>
+            <p><strong>過期:</strong> {expired_tokens}</p>
         </div>
         """,
             unsafe_allow_html=True,
@@ -93,8 +88,8 @@ def render_system_overview(config_helper):
             f"""
         <div class="status-card">
             <h3>🔄 最後更新</h3>
-            <p><strong>時間:</strong> {refresh_time}</p>
             <p><strong>狀態:</strong> {'🟢 已同步' if last_refresh else '⚪ 未同步'}</p>
+            <p><strong>時間:</strong> {refresh_time}</p>
         </div>
         """,
             unsafe_allow_html=True,
@@ -163,23 +158,9 @@ def render_statistics_section(config_helper):
 
 def render_token_statistics(accounts: List[Dict[str, Any]]):
     """Render token status statistics"""
-    col1, col2 = st.columns(2)
+    (col1,) = st.columns(1)
 
     with col1:
-        # ID token statistics
-        id_expired = sum(1 for acc in accounts if acc['id_token_expired'])
-        id_valid = len(accounts) - id_expired
-
-        st.write("**ID Token 狀態**")
-        st.write(f"🟢 有效: {id_valid}")
-        st.write(f"🔴 過期: {id_expired}")
-
-        if len(accounts) > 0:
-            valid_percentage = (id_valid / len(accounts)) * 100
-            st.progress(valid_percentage / 100)
-            st.write(f"有效率: {valid_percentage:.1f}%")
-
-    with col2:
         # Access token statistics
         access_expired = sum(1 for acc in accounts if acc['access_token_expired'])
         access_valid = len(accounts) - access_expired
@@ -297,15 +278,6 @@ def generate_warnings(accounts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 }
             )
 
-        if account['id_token_expired']:
-            warnings.append(
-                {
-                    'type': 'error',
-                    'account': account_name,
-                    'message': 'ID Token 已過期，需要立即刷新',
-                }
-            )
-
         # Check for quota warnings
         quota_info = account.get('quota_info', {})
         quota_status = quota_info.get('status', 'unknown')
@@ -350,7 +322,7 @@ def render_quick_actions():
     """Render quick action buttons"""
     st.subheader("⚡ 快速操作")
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
         if st.button("🔄 刷新所有 Access Token", key="refresh_all_access"):
@@ -365,18 +337,6 @@ def render_quick_actions():
                         st.error("❌ 部分 Access Token 刷新失敗")
 
     with col2:
-        if st.button("🔄 刷新所有 ID Token", key="refresh_all_id"):
-            config_helper = st.session_state.get('config_helper')
-            if config_helper:
-                with st.spinner("正在刷新 ID Token..."):
-                    success = config_helper.refresh_all_id_tokens()
-                    if success:
-                        st.success("✅ 所有 ID Token 刷新成功")
-                        st.session_state.last_refresh = datetime.now()
-                    else:
-                        st.error("❌ 部分 ID Token 刷新失敗")
-
-    with col3:
         if st.button("📊 檢查所有配額", key="check_all_quotas"):
             config_helper = st.session_state.get('config_helper')
             if config_helper:
@@ -388,7 +348,8 @@ def render_quick_actions():
                     else:
                         st.error("❌ 部分配額檢查失敗")
 
-    with col4:
+    with col3:
+        # Backup configuration button (separate row)
         if st.button("💾 備份配置", key="backup_config"):
             config_helper = st.session_state.get('config_helper')
             if config_helper:

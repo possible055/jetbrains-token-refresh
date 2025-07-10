@@ -11,16 +11,7 @@
             "id_token": {
               "type": "string"
             },
-            "previous_id_token": {
-              "type": "string"
-            },
-            "refresh_token": {
-              "type": "string"
-            },
             "access_token": {
-              "type": "string"
-            },
-            "previous_access_token": {
               "type": "string"
             },
             "access_token_expires_at": {
@@ -53,17 +44,10 @@
                 }
               },
               "additionalProperties": false
-            },
-            "id_token_expires_at": {
-              "type": [
-                "number",
-                "integer"
-              ]
             }
           },
           "required": [
             "id_token",
-            "refresh_token",
             "access_token",
             "access_token_expires_at",
             "license_id",

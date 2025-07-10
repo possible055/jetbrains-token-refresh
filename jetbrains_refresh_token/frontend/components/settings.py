@@ -1,8 +1,3 @@
-"""
-Settings Page - Application settings and configuration for JetBrains Token Manager
-Handles system settings, logs, import/export, and advanced configurations
-"""
-
 import json
 import sys
 from datetime import datetime
@@ -484,9 +479,7 @@ def generate_csv_export(config_data: Dict[str, Any]) -> str:
     # This is a simplified CSV export
     # In a real implementation, you might want to use pandas or csv module
 
-    csv_content = (
-        "Account Name,License ID,Created Time,Access Token Expires,ID Token Expires,Quota Status\n"
-    )
+    csv_content = "Account Name,License ID,Created Time,Access Token Expires,Quota Status\n"
 
     for name, account in config_data.get('accounts', {}).items():
         created_time = account.get('created_time', '')

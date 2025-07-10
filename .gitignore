@@ -33,6 +33,7 @@ Thumbs.db
 .env
 config.json
 config-backup.json
+jetbrainsai.json
 *.db
 
 # --- project-specific rules ---

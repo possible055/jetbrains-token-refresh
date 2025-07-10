@@ -402,16 +402,6 @@ class SchedulerService:
             max_instances=1,
         )
 
-        # Auto-refresh ID tokens every 4 hours
-        self.add_interval_job(
-            func=self._refresh_id_tokens_job,
-            job_id="auto_refresh_id_tokens",
-            seconds=0,
-            minutes=0,
-            hours=4,
-            max_instances=1,
-        )
-
         # Check quotas every hour
         self.add_interval_job(
             func=self._check_quotas_job,
@@ -476,51 +466,6 @@ class SchedulerService:
 
                 self.state_manager.log_action(
                     session_id, "Auto refresh access tokens: Error", f"Error: {str(e)}"
-                )
-
-    def _refresh_id_tokens_job(self):
-        """Background job to refresh ID tokens"""
-        try:
-            if self.config_helper is not None:
-                success = self.config_helper.refresh_all_id_tokens()
-
-                if self.state_manager:
-                    session_id = 'system'
-                    if STREAMLIT_AVAILABLE and st is not None:
-                        try:
-                            session_id = st.session_state.get('session_id', 'system')
-                        except:
-                            session_id = 'system'
-
-                    status = "Success" if success else "Failed"
-                    self.state_manager.log_action(
-                        session_id,
-                        f"Auto refresh ID tokens: {status}",
-                        f"Timestamp: {datetime.now().isoformat()}",
-                    )
-            else:
-                if self.state_manager:
-                    session_id = 'system'
-                    if STREAMLIT_AVAILABLE and st is not None:
-                        try:
-                            session_id = st.session_state.get('session_id', 'system')
-                        except:
-                            session_id = 'system'
-
-                    self.state_manager.log_action(
-                        session_id, "Auto refresh ID tokens: Error", "Config helper not available"
-                    )
-        except Exception as e:
-            if self.state_manager:
-                session_id = 'system'
-                if STREAMLIT_AVAILABLE and st is not None:
-                    try:
-                        session_id = st.session_state.get('session_id', 'system')
-                    except:
-                        session_id = 'system'
-
-                self.state_manager.log_action(
-                    session_id, "Auto refresh ID tokens: Error", f"Error: {str(e)}"
                 )
 
     def _check_quotas_job(self):

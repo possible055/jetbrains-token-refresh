@@ -13,7 +13,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "jetbrains_refresh_token"
-version = "0.2.0"
+version = "0.3.0"
 authors = [{ name = "possible055", email = "possble055@gmail.com" }]
 description = ""
 readme = "README.md"

@@ -92,20 +92,6 @@ def _fallback_refresh_expired_access_tokens(
     return True
 
 
-def _fallback_refresh_expired_id_token(
-    account_name: str, config_path: Optional[str] = None, forced: bool = False
-) -> bool:
-    """Fallback implementation for refresh_expired_id_token"""
-    return True
-
-
-def _fallback_refresh_expired_id_tokens(
-    config_path: Optional[str] = None, forced: bool = False
-) -> bool:
-    """Fallback implementation for refresh_expired_id_tokens"""
-    return True
-
-
 def _fallback_check_quota_remaining(config_path: Optional[str] = None) -> bool:
     """Fallback implementation for check_quota_remaining"""
     return True
@@ -117,8 +103,6 @@ try:
         check_quota_remaining,
         refresh_expired_access_token,
         refresh_expired_access_tokens,
-        refresh_expired_id_token,
-        refresh_expired_id_tokens,
     )
     from jetbrains_refresh_token.config.loader import load_config, resolve_config_path
     from jetbrains_refresh_token.config.manager import (
@@ -148,8 +132,6 @@ except ImportError as e:
     parse_jwt_expiration = _fallback_parse_jwt_expiration
     refresh_expired_access_token = _fallback_refresh_expired_access_token
     refresh_expired_access_tokens = _fallback_refresh_expired_access_tokens
-    refresh_expired_id_token = _fallback_refresh_expired_id_token
-    refresh_expired_id_tokens = _fallback_refresh_expired_id_tokens
     check_quota_remaining = _fallback_check_quota_remaining
 
     # Create placeholder for missing functions
@@ -222,13 +204,8 @@ class ConfigHelper:
             for name, data in accounts.items():
                 # Calculate token status
                 access_token = data.get("access_token", "")
-                id_token = data.get("id_token", "")
 
                 access_token_expired = is_jwt_expired(access_token) if access_token else True
-                id_token_expires_at = data.get("id_token_expires_at")
-                id_token_expired = (
-                    is_id_token_expired(id_token_expires_at) if id_token_expires_at else True
-                )
 
                 # Parse expiration times
                 access_expires_at = parse_jwt_expiration(access_token) if access_token else None
@@ -241,9 +218,7 @@ class ConfigHelper:
                     "license_id": data.get("license_id", "N/A"),
                     "created_time": data.get("created_time"),
                     "access_token_expired": access_token_expired,
-                    "id_token_expired": id_token_expired,
                     "access_expires_at": access_expires_at,
-                    "id_token_expires_at": id_token_expires_at,
                     "quota_info": quota_info,
                     "status": self._determine_account_status(data),
                 }
@@ -257,18 +232,11 @@ class ConfigHelper:
     def _determine_account_status(self, account_data: Dict[str, Any]) -> str:
         """Determine account status based on token states"""
         access_token = account_data.get("access_token", "")
-        id_token = account_data.get("id_token", "")
 
         access_expired = is_jwt_expired(access_token) if access_token else True
-        id_token_expires_at = account_data.get("id_token_expires_at")
-        id_expired = is_id_token_expired(id_token_expires_at) if id_token_expires_at else True
 
-        if access_expired and id_expired:
-            return "🔴 全部過期"
-        elif access_expired:
-            return "🟡 Access Token 過期"
-        elif id_expired:
-            return "🟡 ID Token 過期"
+        if access_expired:
+            return "🔴 Access Token 過期"
         else:
             return "🟢 正常"
 
@@ -296,28 +264,12 @@ class ConfigHelper:
             print(f"Error refreshing access token: {e}")
             return False
 
-    def refresh_account_id_token(self, account_name: str, forced: bool = False) -> bool:
-        """Refresh ID token for specific account"""
-        try:
-            return refresh_expired_id_token(account_name, self.config_path, forced)
-        except Exception as e:
-            print(f"Error refreshing ID token: {e}")
-            return False
-
     def refresh_all_access_tokens(self, forced: bool = False) -> bool:
         """Refresh all access tokens"""
         try:
             return refresh_expired_access_tokens(self.config_path, forced)
         except Exception as e:
             print(f"Error refreshing all access tokens: {e}")
-            return False
-
-    def refresh_all_id_tokens(self, forced: bool = False) -> bool:
-        """Refresh all ID tokens"""
-        try:
-            return refresh_expired_id_tokens(self.config_path, forced)
-        except Exception as e:
-            print(f"Error refreshing all ID tokens: {e}")
             return False
 
     def check_all_quotas(self) -> bool:

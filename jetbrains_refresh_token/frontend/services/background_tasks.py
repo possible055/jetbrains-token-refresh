@@ -367,18 +367,6 @@ class BackgroundTasks:
             # Refresh all accounts
             return self.config_helper.refresh_all_access_tokens(forced)
 
-    def refresh_id_tokens_task(self, account_name: Optional[str] = None, forced: bool = False):
-        """Background task to refresh ID tokens"""
-        if self.config_helper is None:
-            return False
-
-        if account_name:
-            # Refresh specific account
-            return self.config_helper.refresh_account_id_token(account_name, forced)
-        else:
-            # Refresh all accounts
-            return self.config_helper.refresh_all_id_tokens(forced)
-
     def check_quotas_task(self, account_name: Optional[str] = None):
         """Background task to check quotas"""
         if self.config_helper is None:
@@ -412,21 +400,6 @@ class BackgroundTasks:
         return self.add_task(
             name=task_name,
             func=self.refresh_access_tokens_task,
-            kwargs={'account_name': account_name, 'forced': forced},
-            priority=priority,
-        )
-
-    def add_refresh_id_tokens_task(
-        self, account_name: Optional[str] = None, forced: bool = False, priority: int = 5
-    ):
-        """Add refresh ID tokens task"""
-        task_name = f"Refresh ID Tokens"
-        if account_name:
-            task_name += f" - {account_name}"
-
-        return self.add_task(
-            name=task_name,
-            func=self.refresh_id_tokens_task,
             kwargs={'account_name': account_name, 'forced': forced},
             priority=priority,
         )

@@ -146,47 +146,103 @@ def save_access_tokens(
         return False
 
 
-def save_id_tokens(
-    config: Dict,
+def export_to_jetbrainsai_format(
     config_path: Optional[Union[str, Path]] = None,
-    updated_accounts: Optional[list] = None,
+    output_path: Optional[Union[str, Path]] = None,
 ) -> bool:
     """
-    Save or update multiple accounts' ID tokens in the configuration file.
+    Export configuration to jetbrainsai.json format for external package compatibility.
+
+    Converts from internal format:
+    {
+      "accounts": {
+        "account_name": {
+          "access_token": "...",
+          "id_token": "...",
+          "license_id": "..."
+        }
+      }
+    }
+
+    To external format:
+    [
+      {
+        "jwt": "access_token_value",
+        "licenseId": "license_id_value",
+        "authorization": "id_token_value"
+      }
+    ]
 
     Args:
-        config (Dict): Configuration dictionary that has been loaded.
-        config_path (Optional[Union[str, Path]], optional): Path to the configuration file.
+        config_path (Optional[Union[str, Path]]): Path to the source configuration file.
             If None, uses default config location.
-        updated_accounts (Optional[list], optional): List of account names that were updated.
-            If None, assumes all accounts in config need to be saved.
+        output_path (Optional[Union[str, Path]]): Path for the output jetbrainsai.json file.
+            If None, uses 'jetbrainsai.json' in the same directory as config.
 
     Returns:
-        bool: True if successful, False otherwise.
+        bool: True if export succeeds, False otherwise.
     """
-    config_path = resolve_config_path(config_path)
-
     try:
-        # Backup the configuration file before making changes
-        backup_result = backup_config_file(config_path)
-        if not backup_result:
-            logger.warning("Failed to back up config file, but will continue with save operation")
+        # Load the current configuration
+        config = load_config(config_path)
+        if not config or "accounts" not in config:
+            logger.error("No valid configuration found or no accounts in config")
+            return False
 
-        # Write back to file
-        with open(config_path, 'w', encoding='utf-8') as file:
-            json.dump(config, file, indent=2)
-
-        # Log which accounts were updated
-        if updated_accounts:
-            accounts_str = ", ".join(updated_accounts)
-            logger.info("Successfully saved ID tokens for accounts: %s", accounts_str)
+        # Determine output path
+        if output_path is None:
+            config_path_resolved = resolve_config_path(config_path)
+            output_path = config_path_resolved.parent / "jetbrainsai.json"
         else:
-            logger.info("Successfully saved all account ID tokens to config file")
+            output_path = Path(output_path)
 
+        # Convert to jetbrainsai format
+        jetbrainsai_data = []
+
+        for account_name, account_data in config["accounts"].items():
+            # Extract required fields
+            access_token = account_data.get("access_token", "")
+            id_token = account_data.get("id_token", "")
+            license_id = account_data.get("license_id", "")
+
+            # Validate required fields
+            if not access_token:
+                logger.warning("Account '%s' missing access_token, skipping", account_name)
+                continue
+            if not license_id:
+                logger.warning("Account '%s' missing license_id, skipping", account_name)
+                continue
+            if not id_token:
+                logger.warning("Account '%s' missing id_token, skipping", account_name)
+                continue
+
+            # Create jetbrainsai format entry
+            jetbrainsai_entry = {
+                "jwt": access_token,
+                "licenseId": license_id,
+                "authorization": id_token,
+            }
+
+            jetbrainsai_data.append(jetbrainsai_entry)
+            logger.debug("Converted account '%s' to jetbrainsai format", account_name)
+
+        if not jetbrainsai_data:
+            logger.error("No valid accounts found to export")
+            return False
+
+        # Write to jetbrainsai.json
+        with open(output_path, 'w', encoding='utf-8') as file:
+            json.dump(jetbrainsai_data, file, indent=2)
+
+        logger.info(
+            "Successfully exported %d account(s) to jetbrainsai format: %s",
+            len(jetbrainsai_data),
+            output_path,
+        )
         return True
-    # pylint: disable=broad-exception-caught
+
     except Exception as e:
-        logger.error("Failed to save account ID tokens: %s", e)
+        logger.error("Failed to export to jetbrainsai format: %s", e)
         return False
 
 
