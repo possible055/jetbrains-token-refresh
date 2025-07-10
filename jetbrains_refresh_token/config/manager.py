@@ -139,10 +139,42 @@ def save_access_tokens(
         else:
             logger.info("Successfully saved all account tokens to config file")
 
+        # Auto-export to jetbrainsai.json format after saving tokens
+        auto_export_jetbrainsai_format(config_path)
+
         return True
     # pylint: disable=broad-exception-caught
     except Exception as e:
         logger.error("Failed to save account tokens: %s", e)
+        return False
+
+
+def auto_export_jetbrainsai_format(
+    config_path: Optional[Union[str, Path]] = None,
+) -> bool:
+    """
+    Automatically export configuration to jetbrainsai.json format after account changes.
+
+    This is a helper function that calls export_to_jetbrainsai_format with default settings
+    to automatically maintain the jetbrainsai.json file when accounts are modified.
+
+    Args:
+        config_path (Optional[Union[str, Path]]): Path to the source configuration file.
+            If None, uses default config location.
+
+    Returns:
+        bool: True if export succeeds, False otherwise.
+    """
+    try:
+        # Use default output path (jetbrainsai.json in same directory as config)
+        success = export_to_jetbrainsai_format(config_path, output_path=None)
+        if success:
+            logger.debug("Auto-exported configuration to jetbrainsai.json format")
+        else:
+            logger.warning("Failed to auto-export configuration to jetbrainsai.json format")
+        return success
+    except Exception as e:
+        logger.error("Error during auto-export to jetbrainsai format: %s", e)
         return False
 
 
@@ -321,6 +353,10 @@ def save_quota_info(
             json.dump(config, file, indent=2)
 
         logger.info("Successfully saved quota information for account: %s", account_name)
+
+        # Auto-export to jetbrainsai.json format after saving quota info
+        auto_export_jetbrainsai_format(config_path)
+
         return True
     # pylint: disable=broad-exception-caught
     except Exception as e:

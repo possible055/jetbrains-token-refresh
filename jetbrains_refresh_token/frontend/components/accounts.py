@@ -149,19 +149,17 @@ def render_edit_account_modal(account: Dict[str, Any], config_helper):
         account_data = config.get('accounts', {}).get(account['name'], {})
 
         license_id = st.text_input("License ID", value=account_data.get('license_id', ''))
-        refresh_token = st.text_input(
-            "Refresh Token", value=account_data.get('refresh_token', ''), type='password'
-        )
+        id_token = st.text_input("ID Token", value=account_data.get('id_token', ''), type='default')
 
         col1, col2 = st.columns(2)
 
         with col1:
             if st.form_submit_button("💾 儲存"):
-                if license_id and refresh_token:
+                if license_id and id_token:
                     success = config_helper.update_account(
                         account['name'],
                         license_id=license_id,
-                        refresh_token=refresh_token,
+                        id_token=id_token,
                     )
                     if success:
                         st.success("✅ 帳戶更新成功")
@@ -204,44 +202,42 @@ def render_delete_account_modal(account: Dict[str, Any], config_helper):
 
 def render_add_account(config_helper):
     """Render add account form"""
-    st.subheader("➕ 新增帳戶")
+    st.subheader("➕ 新增帐号")
 
     with st.form("add_account"):
-        st.write("請填寫以下資訊來新增帳戶：")
+        st.write("请填写以下资讯来新增帐号：")
 
-        account_name = st.text_input("帳戶名稱 *", placeholder="輸入帳戶名稱")
-        license_id = st.text_input("License ID *", placeholder="輸入 JetBrains License ID")
-        refresh_token = st.text_input(
-            "Refresh Token *", type="password", placeholder="輸入 Refresh Token"
-        )
+        account_name = st.text_input("帐号名称 *", placeholder="输入帐号名称")
+        license_id = st.text_input("License ID *", placeholder="输入 JetBrains License ID")
+        id_token = st.text_input("ID Token *", placeholder="输入 ID Token")
 
-        st.markdown("*為必填欄位")
+        st.markdown("*为必填栏位")
 
-        if st.form_submit_button("➕ 新增帳戶"):
-            if all([account_name, license_id, refresh_token]):
+        if st.form_submit_button("➕ 新增帐号"):
+            if all([account_name, license_id, id_token]):
                 # Check if account already exists
                 existing_accounts = config_helper.get_accounts()
                 if any(acc['name'] == account_name for acc in existing_accounts):
-                    st.error("❌ 帳戶名稱已存在，請使用其他名稱")
+                    st.error("❌ 帐号名稱已存在，請使用其他名稱")
                 else:
-                    success = config_helper.add_account(account_name, refresh_token, license_id)
+                    success = config_helper.add_account(account_name, id_token, license_id)
                     if success:
-                        st.success("✅ 帳戶新增成功")
+                        st.success("✅ 帐号新增成功")
                         st.rerun()
                     else:
-                        st.error("❌ 帳戶新增失敗")
+                        st.error("❌ 帐号新增失敗")
             else:
-                st.error("❌ 請填寫所有必填欄位")
+                st.error("❌ 请填写所有必填栏位")
 
     # Add account form help
-    with st.expander("❓ 如何獲取所需資訊"):
+    with st.expander("❓ 如何获取所需资讯"):
         st.write(
             """
-        **License ID**: 您的 JetBrains 授權 ID
-                
-        **Refresh Token**: 用於自動刷新 Token 的 Refresh Token
-        
-        **注意**: 請確保所有 Token 都是有效的，否則帳戶將無法正常工作。
+        **License ID**: 您的 JetBrains 授权 ID
+
+        **ID Token**: 用于自动刷新 Token 的 ID Token
+
+        **注意**: 请确保所有 Token 和 License ID 有效，否则帐号将无法正常工作。
         """
         )
 

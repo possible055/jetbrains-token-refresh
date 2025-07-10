@@ -97,6 +97,11 @@ def _fallback_check_quota_remaining(config_path: Optional[str] = None) -> bool:
     return True
 
 
+def _fallback_auto_export_jetbrainsai_format(config_path: Optional[str] = None) -> bool:
+    """Fallback implementation for auto_export_jetbrainsai_format"""
+    return True
+
+
 # Try to import existing modules, use fallbacks if not available
 try:
     from jetbrains_refresh_token.api.auth import (
@@ -106,6 +111,7 @@ try:
     )
     from jetbrains_refresh_token.config.loader import load_config, resolve_config_path
     from jetbrains_refresh_token.config.manager import (
+        auto_export_jetbrainsai_format,
         backup_config_file,
     )
     from jetbrains_refresh_token.config.utils import (
@@ -128,6 +134,7 @@ except ImportError as e:
     refresh_expired_access_token = _fallback_refresh_expired_access_token
     refresh_expired_access_tokens = _fallback_refresh_expired_access_tokens
     check_quota_remaining = _fallback_check_quota_remaining
+    auto_export_jetbrainsai_format = _fallback_auto_export_jetbrainsai_format
 
     # Create placeholder for missing functions
     def list_accounts_data(config_path: Optional[str] = None) -> List[Dict[str, Any]]:
@@ -275,7 +282,7 @@ class ConfigHelper:
             print(f"Error checking quotas: {e}")
             return False
 
-    def add_account(self, name: str, id_token: str, refresh_token: str, license_id: str) -> bool:
+    def add_account(self, name: str, id_token: str, license_id: str) -> bool:
         """Add new account to configuration"""
         try:
             config = self.get_config()
@@ -287,7 +294,6 @@ class ConfigHelper:
             # Add new account
             config["accounts"][name] = {
                 "id_token": id_token,
-                "refresh_token": refresh_token,
                 "license_id": license_id,
                 "created_time": datetime.now().timestamp(),
                 "access_token": "",
@@ -310,7 +316,7 @@ class ConfigHelper:
 
             # Update account data
             for key, value in kwargs.items():
-                if key in ["id_token", "refresh_token", "license_id"]:
+                if key in ["id_token", "refresh_token", "license_id", "access_token"]:
                     config["accounts"][name][key] = value
 
             return self._save_config(config)
@@ -346,6 +352,9 @@ class ConfigHelper:
             # Clear cache to force reload
             self._config_cache = None
             self._cache_timestamp = None
+
+            # Auto-export to jetbrainsai.json format after saving config
+            auto_export_jetbrainsai_format(self.config_path)
 
             return True
         except Exception as e:
