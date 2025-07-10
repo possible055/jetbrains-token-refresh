@@ -31,7 +31,7 @@ def launch_web_ui(port: int = 8501):
     sys.argv = [
         "streamlit",
         "run",
-        FRONTEND_APP_PATH,
+        str(FRONTEND_APP_PATH),
         "--server.port",
         str(port),
         "--server.headless",

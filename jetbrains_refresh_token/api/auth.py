@@ -242,8 +242,9 @@ def refresh_expired_id_tokens(
             continue
 
         current_id_token = account_data.get("id_token", "N/A")
+        id_token_expires_at = account_data.get("id_token_expires_at")
 
-        if not forced and not is_id_token_expired(current_id_token):
+        if not forced and id_token_expires_at and not is_id_token_expired(id_token_expires_at):
             logger.info(
                 "ID token for account '%s' is still valid and does not require renewal.",
                 account_name,
@@ -358,8 +359,9 @@ def refresh_expired_id_token(
         return False
 
     current_id_token = account_data.get("id_token", "N/A")
+    id_token_expires_at = account_data.get("id_token_expires_at")
 
-    if not forced and not is_id_token_expired(current_id_token):
+    if not forced and id_token_expires_at and not is_id_token_expired(id_token_expires_at):
         logger.info(
             "ID token for account '%s' is still valid and does not require renewal.",
             account_name,

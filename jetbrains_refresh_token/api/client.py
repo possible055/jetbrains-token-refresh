@@ -47,8 +47,8 @@ def requests_post(
         logger.info("Sending request with up to 3 retries configured.")
         response = session.post(
             url,
-            data=data,
             headers=headers,
+            data=data,
             timeout=timeout,
         )
         return response
