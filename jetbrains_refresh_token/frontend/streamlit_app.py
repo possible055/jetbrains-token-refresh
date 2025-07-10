@@ -9,7 +9,13 @@ from typing import TYPE_CHECKING
 
 import streamlit as st
 
-from jetbrains_refresh_token.frontend.pages import accounts, dashboard, quotas, settings, tokens
+from jetbrains_refresh_token.frontend.components import (
+    accounts,
+    dashboard,
+    quotas,
+    settings,
+    tokens,
+)
 from jetbrains_refresh_token.frontend.utils.config_helper import ConfigHelper
 from jetbrains_refresh_token.frontend.utils.state_manager import PersistentStateManager
 

@@ -166,6 +166,20 @@ def render_token_statistics(accounts: List[Dict[str, Any]]):
     col1, col2 = st.columns(2)
 
     with col1:
+        # ID token statistics
+        id_expired = sum(1 for acc in accounts if acc['id_token_expired'])
+        id_valid = len(accounts) - id_expired
+
+        st.write("**ID Token 狀態**")
+        st.write(f"🟢 有效: {id_valid}")
+        st.write(f"🔴 過期: {id_expired}")
+
+        if len(accounts) > 0:
+            valid_percentage = (id_valid / len(accounts)) * 100
+            st.progress(valid_percentage / 100)
+            st.write(f"有效率: {valid_percentage:.1f}%")
+
+    with col2:
         # Access token statistics
         access_expired = sum(1 for acc in accounts if acc['access_token_expired'])
         access_valid = len(accounts) - access_expired
@@ -177,20 +191,6 @@ def render_token_statistics(accounts: List[Dict[str, Any]]):
         # Simple progress bar simulation
         if len(accounts) > 0:
             valid_percentage = (access_valid / len(accounts)) * 100
-            st.progress(valid_percentage / 100)
-            st.write(f"有效率: {valid_percentage:.1f}%")
-
-    with col2:
-        # ID token statistics
-        id_expired = sum(1 for acc in accounts if acc['id_token_expired'])
-        id_valid = len(accounts) - id_expired
-
-        st.write("**ID Token 狀態**")
-        st.write(f"🟢 有效: {id_valid}")
-        st.write(f"🔴 過期: {id_expired}")
-
-        if len(accounts) > 0:
-            valid_percentage = (id_valid / len(accounts)) * 100
             st.progress(valid_percentage / 100)
             st.write(f"有效率: {valid_percentage:.1f}%")
 
