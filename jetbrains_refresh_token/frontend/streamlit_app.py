@@ -5,7 +5,7 @@ Main application entry point with multi-page navigation
 
 import sys
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 import streamlit as st
 

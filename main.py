@@ -103,10 +103,70 @@ def test_quota_check(config_path=None):
         return False
 
 
+def launch_web_ui(port=8501):
+    """
+    啟動 Streamlit Web UI
+
+    Args:
+        port (int): Web UI 端口號，默認 8501
+
+    Returns:
+        bool: 如果啟動成功返回 True，否則返回 False
+    """
+    print(f"🚀 正在啟動 JetBrains Token Manager Web UI...")
+    print(f"📍 端口: {port}")
+    print(f"🌐 瀏覽器將自動打開 http://localhost:{port}")
+    print("=" * 50)
+
+    try:
+        # 嘗試導入 streamlit 和相關模組
+        import sys
+        from pathlib import Path
+
+        import streamlit.web.cli as stcli
+
+        # 設置 Streamlit 配置
+        frontend_app_path = (
+            Path(__file__).parent / "jetbrains_refresh_token" / "frontend" / "streamlit_app.py"
+        )
+
+        if not frontend_app_path.exists():
+            print(f"❌ 錯誤：找不到前端應用程式文件 {frontend_app_path}")
+            return False
+
+        # 設置 Streamlit 啟動參數
+        sys.argv = [
+            "streamlit",
+            "run",
+            str(frontend_app_path),
+            "--server.port",
+            str(port),
+            "--server.headless",
+            "false",
+            "--browser.gatherUsageStats",
+            "false",
+        ]
+
+        # 啟動 Streamlit
+        stcli.main()
+        return True
+
+    except ImportError as e:
+        print("❌ 錯誤：缺少 Streamlit 依賴")
+        print("💡 請執行以下命令安裝 Streamlit：")
+        print("   pip install streamlit")
+        print("   或者：pip install -r requirements.txt")
+        print(f"   詳細錯誤：{e}")
+        return False
+    except Exception as e:
+        print(f"❌ 啟動 Web UI 時發生錯誤：{e}")
+        return False
+
+
 def setup_argument_parser():
     parser = argparse.ArgumentParser(
         description='JetBrains JWT Token Refresh Tool',
-        epilog='Usage example: python main.py --refresh-access',
+        epilog='Usage example: python main.py --refresh-access OR python main.py --web',
     )
 
     parser.add_argument('--config', type=str, default=None, help='Specify configuration file path')
@@ -131,6 +191,12 @@ def setup_argument_parser():
         '--force', action='store_true', help='Force update tokens (use with refresh options)'
     )
 
+    # Web UI arguments
+    parser.add_argument('--web', action='store_true', help='Launch Streamlit web interface')
+    parser.add_argument(
+        '--web-port', type=int, default=8501, help='Port for web interface (default: 8501)'
+    )
+
     return parser
 
 
@@ -138,6 +204,16 @@ def main():
     parser = setup_argument_parser()
     args = parser.parse_args()
 
+    # 處理 Web UI 啟動
+    if args.web:
+        success = launch_web_ui(args.web_port)
+        if success:
+            logger.info("Web UI launched successfully on port %d", args.web_port)
+        else:
+            logger.error("Failed to launch Web UI. Please check the logs.")
+        return
+
+    # 檢查是否有任何 CLI 參數
     if not (
         args.refresh_access
         or args.refresh_all_access

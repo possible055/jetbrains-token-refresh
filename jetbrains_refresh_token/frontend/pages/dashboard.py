@@ -3,7 +3,6 @@ Dashboard Page - Main overview page for JetBrains Token Manager
 Displays system status, warnings, and quick statistics
 """
 
-import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
 

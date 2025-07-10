@@ -4,7 +4,7 @@ Handles account creation, editing, deletion, and viewing
 """
 
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import streamlit as st
 
