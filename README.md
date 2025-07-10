@@ -19,17 +19,15 @@
   "accounts": {
     "account_name": {
       "id_token": "<JWT>",
-      "refresh_token": "<refresh token>",
-      "access_token": "<JWT>",
+      "access_token": "<Token>",
       "access_token_expires_at": 1700000000,
-      "license_id": "<license id>",
+      "license_id": "<license ID>",
       "created_time": 1690000000,
       "quota_info": {
         "remaining_amount": "...",
         "usage_percentage": 0.0,
         "status": "normal"
-      },
-      "id_token_expires_at": 1700000000
+      }
     }
   }
 }
