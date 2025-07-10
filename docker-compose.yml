@@ -18,18 +18,19 @@ services:
       retries: 3
       start_period: 40s
 
-  # 外部服務範例 - 可以同時掛載相同的 jetbrainsai.json 文件
-  external-service:
-    image: your-external-service-image
-    container_name: jetbrains-external-service
-    ports:
-      - "8000:8000"
-    volumes:
-      # 同一個文件可以掛載到多個容器
-      - ./jetbrainsai.json:/app/jetbrainsai.json:ro
-    depends_on:
-      - jetbrains-proxy
-    restart: unless-stopped
+  # JetBrains AI to API 服務 - 獨立服務，只共用 jetbrainsai.json
+  # jetbrainsai2api:
+  #   build: .
+  #   container_name: jetbrainsai2api
+  #   ports:
+  #     - "8000:8000"
+  #   volumes:
+  #     - ./jetbrainsai.json:/app/jetbrainsai.json:ro
+  #     - ./client_api_keys.json:/app/client_api_keys.json:ro
+  #     - ./models.json:/app/models.json:ro
+  #   environment:
+  #     - DEBUG_MODE=${DEBUG_MODE:-false}
+  #   restart: unless-stopped
 
 networks:
   default:
