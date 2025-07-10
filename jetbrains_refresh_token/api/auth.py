@@ -21,6 +21,7 @@ from jetbrains_refresh_token.config.utils import (
     is_jwt_expired,
     parse_jwt_expiration,
 )
+from jetbrains_refresh_token.constants import ID_TOKEN_EXPIRATION_EXTENSION_SECONDS
 
 
 def refresh_expired_access_tokens(
@@ -279,11 +280,15 @@ def refresh_expired_id_tokens(
         config["accounts"][account_name]["access_token"] = token_data["access_token"]
         config["accounts"][account_name]["refresh_token"] = token_data["refresh_token"]
 
-        # Parse and save the ID token expiration time
+        # Parse and save the ID token expiration time (extended by 3 days)
         id_expires_at = parse_jwt_expiration(str(token_data["id_token"]))
         if id_expires_at is not None:
-            config["accounts"][account_name]["id_token_expires_at"] = id_expires_at
-            logger.info("ID token expiration time set for account: %s", account_name)
+            # Extend the expiration time by 3 days
+            extended_expires_at = id_expires_at + ID_TOKEN_EXPIRATION_EXTENSION_SECONDS
+            config["accounts"][account_name]["id_token_expires_at"] = extended_expires_at
+            logger.info(
+                "ID token expiration time set for account: %s (extended by 3 days)", account_name
+            )
         else:
             logger.warning("Could not parse ID token expiration time for account: %s", account_name)
 
@@ -390,11 +395,15 @@ def refresh_expired_id_token(
     config["accounts"][account_name]["access_token"] = token_data["access_token"]
     config["accounts"][account_name]["refresh_token"] = token_data["refresh_token"]
 
-    # Parse and save the ID token expiration time
+    # Parse and save the ID token expiration time (extended by 3 days)
     id_expires_at = parse_jwt_expiration(str(token_data["id_token"]))
     if id_expires_at is not None:
-        config["accounts"][account_name]["id_token_expires_at"] = id_expires_at
-        logger.info("ID token expiration time set for account: %s", account_name)
+        # Extend the expiration time by 3 days
+        extended_expires_at = id_expires_at + ID_TOKEN_EXPIRATION_EXTENSION_SECONDS
+        config["accounts"][account_name]["id_token_expires_at"] = extended_expires_at
+        logger.info(
+            "ID token expiration time set for account: %s (extended by 3 days)", account_name
+        )
     else:
         logger.warning("Could not parse ID token expiration time for account: %s", account_name)
 
@@ -428,7 +437,8 @@ def check_quota_remaining(config_path: Optional[Union[str, Path]] = None) -> boo
             Defaults to None, using the system default path.
 
     Returns:
-        bool: Returns True if all quota checks are successful or not needed; returns False on failure.
+        bool: Returns True if all quota checks are successful or not needed;
+            returns False on failure.
     """
     config_path = resolve_config_path(config_path)
 

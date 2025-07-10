@@ -13,3 +13,11 @@ SCHEMA_PATH = BASE_PATH / 'config' / "config_schema.json"
 
 # Create logs directory if it doesn't exist
 LOG_PATH.mkdir(parents=True, exist_ok=True)
+
+
+FRONTEND_APP_PATH = BASE_PATH / "frontend" / "streamlit_app.py"
+
+# ID Token expiration extension time (in seconds)
+# When refreshing ID tokens, extend the expiration time by this amount
+# 3 days = 3 * 24 * 60 * 60 = 259200 seconds
+ID_TOKEN_EXPIRATION_EXTENSION_SECONDS = 259200
