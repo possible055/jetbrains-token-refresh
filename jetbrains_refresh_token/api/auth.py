@@ -1,6 +1,3 @@
-from pathlib import Path
-from typing import Optional, Union
-
 from jetbrains_refresh_token.api.client import (
     request_access_token,
     request_quota_info,
@@ -8,38 +5,29 @@ from jetbrains_refresh_token.api.client import (
 from jetbrains_refresh_token.config import logger
 from jetbrains_refresh_token.config.loader import (
     load_config,
-    resolve_config_path,
 )
 from jetbrains_refresh_token.config.manager import (
     save_access_tokens,
     save_quota_info,
 )
 from jetbrains_refresh_token.config.utils import (
-    is_jwt_expired,
+    is_access_token_expired,
     parse_jwt_expiration,
 )
 
 
-def refresh_expired_access_tokens(
-    config_path: Optional[Union[str, Path]] = None, forced: bool = False
-) -> bool:
+def refresh_expired_access_tokens(is_forced: bool = False) -> bool:
     """
     Refreshes JWT for all accounts if needed.
 
     Args:
-        config_path (Optional[Union[str, Path]], optional): Path to the configuration file.
-            Defaults to None, using the system default path.
-        forced (bool, optional): If True, forces refresh of all access tokens regardless of
+        is_forced (bool, optional): If True, forces refresh of all access tokens regardless of
             expiration status. Defaults to False.
 
     Returns:
         bool: Returns True if refresh is successful or not needed; returns False on failure.
     """
-    config_path = resolve_config_path(config_path)
-
-    config = load_config(config_path)
-    if not config:
-        return False
+    config = load_config()
 
     # Keeping track of the refresh status for all accounts
     all_successful = True
@@ -47,25 +35,31 @@ def refresh_expired_access_tokens(
     updated_accounts = []  # Track which accounts are updated
 
     for account_name, account_data in config["accounts"].items():
-        # A JWT token requires both an auth_token and a license_id
-        id_token = account_data.get("id_token", "N/A")
-        license_id = account_data.get("license_id", "N/A")
+        id_token = account_data.get("id_token")
+        license_id = account_data.get("license_id")
+        current_access_token = account_data.get("access_token")
 
-        current_access_token = account_data.get("access_token", "N/A")
-
-        if not forced and not is_jwt_expired(current_access_token):
-            logger.info(
-                "Access token for account '%s' is still valid and does not require renewal.",
+        if not all([current_access_token, id_token, license_id]):
+            logger.error(
+                "Missing required fields for account '%s': id_token, license_id, or access_token.",
                 account_name,
             )
+            all_successful = False
             continue
 
-        if forced:
+        if is_forced:
             logger.info(
                 "Forced refresh mode: Initiating refresh for account '%s'.",
                 account_name,
             )
         else:
+            if not is_access_token_expired(current_access_token):
+                logger.info(
+                    "Access token for account '%s' is still valid and does not require renewal.",
+                    account_name,
+                )
+                continue
+
             logger.info(
                 "Access token for account '%s' is nearing expiration. Initiating refresh.",
                 account_name,
@@ -101,66 +95,52 @@ def refresh_expired_access_tokens(
 
     # Save the configuration file if the JWT for any account has been updated
     if config_updated:
-        # Use the new function to save multiple JWT tokens
-        save_result = save_access_tokens(
-            config=config, config_path=config_path, updated_accounts=updated_accounts
-        )
-
-        if not save_result:
-            logger.error("Failed to save updated Access tokens to config file")
-            all_successful = False
+        save_access_tokens(config=config, updated_accounts=updated_accounts)
 
     return all_successful
 
 
-def refresh_expired_access_token(
-    account_name: str, config_path: Optional[Union[str, Path]] = None, forced: bool = False
-) -> bool:
+def refresh_expired_access_token(account_name: str, is_forced: bool = False) -> bool:
     """
     Refreshes JWT for a single account if needed.
 
     Args:
         account_name (str): The name of the account to refresh.
-        config_path (Optional[Union[str, Path]], optional): Path to the configuration file.
-            Defaults to None, using the system default path.
-        forced (bool, optional): If True, forces refresh of the access token regardless of
+        is_forced (bool, optional): If True, forces refresh of the access token regardless of
             expiration status. Defaults to False.
 
     Returns:
         bool: Returns True if refresh is successful or not needed; returns False on failure.
     """
-    config_path = resolve_config_path(config_path)
-
-    config = load_config(config_path)
-    if not config:
-        return False
-
-    # Check if account exists
-    if account_name not in config["accounts"]:
-        logger.error("Account '%s' not found in configuration", account_name)
-        return False
+    config = load_config()
 
     account_data = config["accounts"][account_name]
 
     # A JWT token requires both an auth_token and a license_id
-    id_token = account_data.get("id_token", "N/A")
-    license_id = account_data.get("license_id", "N/A")
+    id_token = account_data.get("id_token")
+    license_id = account_data.get("license_id")
+    current_access_token = account_data.get("access_token")
 
-    current_access_token = account_data.get("access_token", "N/A")
-
-    if not forced and not is_jwt_expired(current_access_token):
-        logger.info(
-            "Access token for account '%s' is still valid and does not require renewal.",
+    if not all([current_access_token, id_token, license_id]):
+        logger.error(
+            "Missing required fields for account '%s': id_token, license_id, or access_token.",
             account_name,
         )
-        return True
+        return False
 
-    if forced:
+    if is_forced:
         logger.info(
             "Forced refresh mode: Initiating refresh for account '%s'.",
             account_name,
         )
     else:
+        if not is_access_token_expired(current_access_token):
+            logger.info(
+                "Access token for account '%s' is still valid and does not require renewal.",
+                account_name,
+            )
+            return True
+
         logger.info(
             "Access token for account '%s' is nearing expiration. Initiating refresh.",
             account_name,
@@ -189,36 +169,21 @@ def refresh_expired_access_token(
         logger.warning("Could not parse Access token expiration time for account: %s", account_name)
 
     # Save the configuration file
-    save_result = save_access_tokens(
-        config=config, config_path=config_path, updated_accounts=[account_name]
-    )
-
-    if not save_result:
-        logger.error("Failed to save updated Access token to config file")
-        return False
+    save_access_tokens(config=config, updated_accounts=[account_name])
 
     logger.info("Access token refresh successful for account: %s", account_name)
     return True
 
 
-def check_quota_remaining(config_path: Optional[Union[str, Path]] = None) -> bool:
+def check_quota_remaining() -> bool:
     """
     Check the remaining quota for all accounts' access tokens.
-
-    Args:
-        config_path (Optional[Union[str, Path]], optional): Path to the configuration file.
-            Defaults to None, using the system default path.
 
     Returns:
         bool: Returns True if all quota checks are successful or not needed;
             returns False on failure.
     """
-    config_path = resolve_config_path(config_path)
-
-    config = load_config(config_path)
-    if not config:
-        logger.error("Failed to load configuration")
-        return False
+    config = load_config()
 
     # Keeping track of the quota check status for all accounts
     all_successful = True
@@ -249,7 +214,7 @@ def check_quota_remaining(config_path: Optional[Union[str, Path]] = None) -> boo
         logger.debug("Quota info for account '%s': %s", account_name, quota_info)
 
         # Save quota information to config file
-        save_result = save_quota_info(config, account_name, quota_info, config_path)
+        save_result = save_quota_info(config, account_name, quota_info)
         if save_result:
             logger.info("Quota information saved to config for account: %s", account_name)
             config_updated = True

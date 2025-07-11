@@ -148,7 +148,6 @@ def export_to_another_format() -> bool:
     return False
 
 
-# TODO : Implement quota info saving logic
 def save_quota_info(
     config: Dict,
     account_name: str,
@@ -158,75 +157,71 @@ def save_quota_info(
     Save quota information for a specific account to the configuration file.
 
     Args:
+        config (Dict): Configuration dictionary that has been loaded.
         account_name (str): The name of the account to save quota info for.
         quota_data (Dict): The quota information to save.
-        config_path (Optional[Union[str, Path]], optional): Path to the configuration file.
-            If None, uses default config location.
 
     Returns:
         bool: True if successful, False otherwise.
     """
+    # Backup the configuration file before making changes
+    backup_result = backup_config_file()
+    if not backup_result:
+        logger.warning("Failed to back up config file, but will continue with save operation")
+
     try:
         # Process quota data to extract key information
         current_data = quota_data.get('current', {})
-        if current_data:
-            maximum_amount = current_data.get('maximum', {}).get('amount', 'N/A')
-            current_amount = current_data.get('current', {}).get('amount', 'N/A')
-
-            # Calculate remaining amount and usage percentage
-            remaining_amount = 'N/A'
-            usage_percentage = 0.0
-            status = 'unknown'
-
-            try:
-                if current_amount != 'N/A' and maximum_amount != 'N/A':
-                    current_float = float(current_amount.rstrip('.'))
-                    maximum_float = float(maximum_amount.rstrip('.'))
-                    remaining_float = maximum_float - current_float
-                    remaining_amount = str(remaining_float)
-                    usage_percentage = (current_float / maximum_float) * 100
-
-                    # Determine status based on usage percentage
-                    if usage_percentage > 90:
-                        status = 'critical'
-                    elif usage_percentage > 80:
-                        status = 'warning'
-                    else:
-                        status = 'normal'
-            except (ValueError, TypeError, ZeroDivisionError):
-                logger.warning(
-                    "Could not calculate quota statistics for account '%s'", account_name
-                )
-
-            # Save quota information to config (simplified structure)
-            quota_info = {
-                'remaining_amount': remaining_amount,
-                'usage_percentage': usage_percentage,
-                'status': status,
-            }
-
-            config["accounts"][account_name]["quota_info"] = quota_info
-            logger.info("Quota information processed for account '%s'", account_name)
-        else:
-            logger.warning("No current quota data found for account '%s'", account_name)
-            return False
-
-        # Backup the configuration file before making changes
-        backup_result = backup_config_file()
-        if not backup_result:
-            logger.warning("Failed to back up config file, but will continue with save operation")
-
-        # Write back to file
-        with open(CONFIG_PATH, 'w', encoding='utf-8') as file:
-            json.dump(config, file, indent=2)
-
-        logger.info("Successfully saved quota information for account: %s", account_name)
-
-        # Auto-export to jetbrainsai.json format after saving quota info
-        export_to_another_format()
-
-        return True
-    # pylint: disable=broad-exception-caught
-    except Exception as e:
-        logger.error("Failed to save quota information for account '%s': %s", account_name, e)
+    except ValueError:
+        logger.warning("No current quota data found for account '%s'", account_name)
         return False
+
+    maximum_amount = current_data.get('maximum').get('amount')
+    current_amount = current_data.get('current').get('amount')
+
+    # Calculate remaining amount and usage percentage
+    remaining_amount = 'N/A'
+    usage_percentage = 0.0
+    status = 'unknown'
+
+    try:
+        if current_amount != 'N/A' and maximum_amount != 'N/A':
+            remaining_amount = str(
+                float(maximum_amount.rstrip('.')) - float(current_amount.rstrip('.'))
+            )
+            usage_percentage = (
+                float(current_amount.rstrip('.')) / float(maximum_amount.rstrip('.'))
+            ) * 100
+
+            # Determine status based on usage percentage
+            if usage_percentage > 95:
+                status = 'critical'
+            elif usage_percentage > 80:
+                status = 'warning'
+            else:
+                status = 'normal'
+    except (ValueError, TypeError, ZeroDivisionError):
+        logger.warning("Could not calculate quota statistics for account '%s'", account_name)
+        return False
+
+    # Save quota information to config (simplified structure)
+    quota_info = {
+        'remaining_amount': remaining_amount,
+        'usage_percentage': usage_percentage,
+        'status': status,
+    }
+
+    config["accounts"][account_name]["quota_info"] = quota_info
+    logger.info("Quota information processed for account '%s'", account_name)
+
+    with open(CONFIG_PATH, 'w', encoding='utf-8') as file:
+        json.dump(config, file, indent=2)
+
+    logger.info("Successfully saved quota information for account: %s", account_name)
+
+    # Auto-export to jetbrainsai.json format after saving quota info
+    if export_to_another_format():
+        logger.info("Successfully exported quota information to jetbrainsai format")
+        return True
+
+    return False

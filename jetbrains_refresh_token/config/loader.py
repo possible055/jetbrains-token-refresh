@@ -1,5 +1,5 @@
 import json
-from typing import Dict, Optional
+from typing import Dict
 
 from jsonschema import ValidationError, validate
 
@@ -24,14 +24,13 @@ def load_config() -> Dict:
             config = json.load(f)
 
         validate_config_format(config)
+        return config
     except FileNotFoundError:
         logger.error("Configuration file not found: %s", CONFIG_PATH)
         raise
     except json.JSONDecodeError as e:
         logger.error("Failed to parse configuration file: %s", e)
         raise
-
-    return config
 
 
 def load_config_schema() -> Dict:
