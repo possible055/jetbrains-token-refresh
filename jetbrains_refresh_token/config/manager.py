@@ -1,37 +1,20 @@
 import json
 import shutil
 from datetime import datetime
-from pathlib import Path
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional
 
 from jetbrains_refresh_token.config import logger
-from jetbrains_refresh_token.config.loader import (
-    load_config,
-    resolve_config_path,
+from jetbrains_refresh_token.config.loader import load_config
+from jetbrains_refresh_token.constants import (
+    COMPATIBLE_CONFIG_PATH,
+    CONFIG_BACKUP_PATH,
+    CONFIG_PATH,
 )
-from jetbrains_refresh_token.constants import CONFIG_BACKUP_PATH
 
 
-def backup_config_file(config_path: Optional[Union[str, Path]] = None) -> bool:
-    """
-    Back up the configuration file to the default backup location.
-
-    Args:
-        config_path (Union[str, Path]): Path to the configuration file to be backed up.
-
-    Returns:
-        bool: Returns True if the backup succeeds, False otherwise.
-    """
-    config_path = resolve_config_path(config_path)
-
-    if not config_path.exists():
-        logger.warning(
-            "Failed to back up the configuration file; file does not exist: %s", config_path
-        )
-        return False
-
+def backup_config_file() -> bool:
     try:
-        shutil.copy2(config_path, CONFIG_BACKUP_PATH)
+        shutil.copy2(CONFIG_PATH, CONFIG_BACKUP_PATH)
         logger.info("Successfully backed up the configuration file to: %s", CONFIG_BACKUP_PATH)
         return True
     except (PermissionError, OSError) as e:
@@ -39,26 +22,15 @@ def backup_config_file(config_path: Optional[Union[str, Path]] = None) -> bool:
         return False
 
 
-def list_accounts(config_path: Optional[Union[str, Path]] = None) -> List[str]:
-    """
-    List all accounts in the configuration.
-
-    Args:
-        config_path (Union[str, Path], optional): Path to the configuration file.
-            If None, uses default config location.
-
-    Returns:
-        List[str]: A list of account names.
-    """
-    # 直接使用 load_config，它內部已使用 resolve_config_path
-    config = load_config(config_path)
+def list_accounts() -> List[str]:
+    config = load_config()
     if not config:
         return []
 
     return list(config["accounts"].keys())
 
 
-def list_accounts_data(config_path: Optional[Union[str, Path]] = None) -> None:
+def list_accounts_data() -> None:
     """
     Print all account data from the configuration file in a bullet-point format.
 
@@ -66,7 +38,7 @@ def list_accounts_data(config_path: Optional[Union[str, Path]] = None) -> None:
         config_path (Union[str, Path], optional): Path to the configuration file.
             If None, the default configuration location will be used.
     """
-    config = load_config(config_path)
+    config = load_config()
     if not config:
         return
 
@@ -104,185 +76,83 @@ def list_accounts_data(config_path: Optional[Union[str, Path]] = None) -> None:
 
 def save_access_tokens(
     config: Dict,
-    config_path: Optional[Union[str, Path]] = None,
     updated_accounts: Optional[list] = None,
-) -> bool:
+) -> None:
     """
     Save or update multiple accounts' tokens in the configuration file.
 
     Args:
         config (Dict): Configuration dictionary that has been loaded.
-        config_path (Optional[Union[str, Path]], optional): Path to the configuration file.
-            If None, uses default config location.
         updated_accounts (Optional[list], optional): List of account names that were updated.
             If None, assumes all accounts in config need to be saved.
 
     Returns:
-        bool: True if successful, False otherwise.
+        None
     """
-    config_path = resolve_config_path(config_path)
-
     try:
-        # Backup the configuration file before making changes
-        backup_result = backup_config_file(config_path)
-        if not backup_result:
-            logger.warning("Failed to back up config file, but will continue with save operation")
-
-        # Write back to file
-        with open(config_path, 'w', encoding='utf-8') as file:
-            json.dump(config, file, indent=2)
-
-        # Log which accounts were updated
-        if updated_accounts:
-            accounts_str = ", ".join(updated_accounts)
-            logger.info("Successfully saved tokens for accounts: %s", accounts_str)
-        else:
-            logger.info("Successfully saved all account tokens to config file")
-
-        # Auto-export to jetbrainsai.json format after saving tokens
-        auto_export_jetbrainsai_format(config_path)
-
-        return True
+        backup_config_file()
     # pylint: disable=broad-exception-caught
     except Exception as e:
-        logger.error("Failed to save account tokens: %s", e)
-        return False
+        logger.warning("Failed to back up config file: %s. Continuing with save operation.", e)
 
+    with open(CONFIG_PATH, 'w', encoding='utf-8') as file:
+        json.dump(config, file, indent=2)
 
-def auto_export_jetbrainsai_format(
-    config_path: Optional[Union[str, Path]] = None,
-) -> bool:
-    """
-    Automatically export configuration to jetbrainsai.json format after account changes.
+    if updated_accounts:
+        accounts_str = ", ".join(updated_accounts)
+        logger.info("Successfully saved tokens for accounts: %s", accounts_str)
+    else:
+        logger.info("Successfully saved all account tokens to config file")
 
-    This is a helper function that calls export_to_jetbrainsai_format with default settings
-    to automatically maintain the jetbrainsai.json file when accounts are modified.
-
-    Args:
-        config_path (Optional[Union[str, Path]]): Path to the source configuration file.
-            If None, uses default config location.
-
-    Returns:
-        bool: True if export succeeds, False otherwise.
-    """
     try:
-        # Use default output path (jetbrainsai.json in same directory as config)
-        success = export_to_jetbrainsai_format(config_path, output_path=None)
-        if success:
-            logger.debug("Auto-exported configuration to jetbrainsai.json format")
-        else:
-            logger.warning("Failed to auto-export configuration to jetbrainsai.json format")
-        return success
+        export_to_another_format()
+    # pylint: disable=broad-exception-caught
     except Exception as e:
-        logger.error("Error during auto-export to jetbrainsai format: %s", e)
-        return False
+        logger.warning("Failed to export to another format: %s", e)
 
 
-def export_to_jetbrainsai_format(
-    config_path: Optional[Union[str, Path]] = None,
-    output_path: Optional[Union[str, Path]] = None,
-) -> bool:
+def export_to_another_format() -> bool:
     """
     Export configuration to jetbrainsai.json format for external package compatibility.
 
-    Converts from internal format:
-    {
-      "accounts": {
-        "account_name": {
-          "access_token": "...",
-          "id_token": "...",
-          "license_id": "..."
-        }
-      }
-    }
-
-    To external format:
-    [
-      {
-        "jwt": "access_token_value",
-        "licenseId": "license_id_value",
-        "authorization": "id_token_value"
-      }
-    ]
-
-    Args:
-        config_path (Optional[Union[str, Path]]): Path to the source configuration file.
-            If None, uses default config location.
-        output_path (Optional[Union[str, Path]]): Path for the output jetbrainsai.json file.
-            If None, uses 'jetbrainsai.json' in the same directory as config.
-
     Returns:
         bool: True if export succeeds, False otherwise.
     """
-    try:
-        # Load the current configuration
-        config = load_config(config_path)
-        if not config or "accounts" not in config:
-            logger.error("No valid configuration found or no accounts in config")
-            return False
 
-        # Determine output path
-        if output_path is None:
-            config_path_resolved = resolve_config_path(config_path)
-            output_path = config_path_resolved.parent / "jetbrainsai.json"
-        else:
-            output_path = Path(output_path)
+    config = load_config()
+    external_config = []
 
-        # Convert to jetbrainsai format
-        jetbrainsai_data = []
+    for account_name, account_data in config["accounts"].items():
+        if not isinstance(account_data, dict):
+            continue
 
-        for account_name, account_data in config["accounts"].items():
-            # Extract required fields
-            access_token = account_data.get("access_token", "")
-            id_token = account_data.get("id_token", "")
-            license_id = account_data.get("license_id", "")
+        access_token = account_data.get("access_token")
+        id_token = account_data.get("id_token")
+        license_id = account_data.get("license_id")
 
-            # Validate required fields
-            if not access_token:
-                logger.warning("Account '%s' missing access_token, skipping", account_name)
-                continue
-            if not license_id:
-                logger.warning("Account '%s' missing license_id, skipping", account_name)
-                continue
-            if not id_token:
-                logger.warning("Account '%s' missing id_token, skipping", account_name)
-                continue
+        if all([access_token, id_token, license_id]):
+            external_config.append(
+                {"jwt": access_token, "licenseId": license_id, "authorization": id_token}
+            )
 
-            # Create jetbrainsai format entry
-            jetbrainsai_entry = {
-                "jwt": access_token,
-                "licenseId": license_id,
-                "authorization": id_token,
-            }
-
-            jetbrainsai_data.append(jetbrainsai_entry)
-            logger.debug("Converted account '%s' to jetbrainsai format", account_name)
-
-        if not jetbrainsai_data:
-            logger.error("No valid accounts found to export")
-            return False
-
-        # Write to jetbrainsai.json
-        with open(output_path, 'w', encoding='utf-8') as file:
-            json.dump(jetbrainsai_data, file, indent=2)
+        with open(COMPATIBLE_CONFIG_PATH, 'w', encoding='utf-8') as file:
+            json.dump(external_config, file, indent=2, ensure_ascii=False)
 
         logger.info(
             "Successfully exported %d account(s) to jetbrainsai format: %s",
-            len(jetbrainsai_data),
-            output_path,
+            len(external_config),
+            COMPATIBLE_CONFIG_PATH,
         )
         return True
 
-    except Exception as e:
-        logger.error("Failed to export to jetbrainsai format: %s", e)
-        return False
+    return False
 
 
+# TODO : Implement quota info saving logic
 def save_quota_info(
     config: Dict,
     account_name: str,
     quota_data: Dict,
-    config_path: Optional[Union[str, Path]] = None,
 ) -> bool:
     """
     Save quota information for a specific account to the configuration file.
@@ -296,8 +166,6 @@ def save_quota_info(
     Returns:
         bool: True if successful, False otherwise.
     """
-    config_path = resolve_config_path(config_path)
-
     try:
         # Process quota data to extract key information
         current_data = quota_data.get('current', {})
@@ -344,18 +212,18 @@ def save_quota_info(
             return False
 
         # Backup the configuration file before making changes
-        backup_result = backup_config_file(config_path)
+        backup_result = backup_config_file()
         if not backup_result:
             logger.warning("Failed to back up config file, but will continue with save operation")
 
         # Write back to file
-        with open(config_path, 'w', encoding='utf-8') as file:
+        with open(CONFIG_PATH, 'w', encoding='utf-8') as file:
             json.dump(config, file, indent=2)
 
         logger.info("Successfully saved quota information for account: %s", account_name)
 
         # Auto-export to jetbrainsai.json format after saving quota info
-        auto_export_jetbrainsai_format(config_path)
+        export_to_another_format()
 
         return True
     # pylint: disable=broad-exception-caught

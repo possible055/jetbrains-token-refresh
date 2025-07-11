@@ -13,7 +13,7 @@ def parse_jwt_expiration(token: str) -> Optional[int]:
     Parse the expiration time from a JWT token.
 
     Args:
-        jwt_token (str): JWT token string.
+        token (str): JWT token string.
 
     Returns:
         Optional[int]: The expiration time as a UNIX timestamp, or None if it cannot be parsed.
@@ -50,7 +50,7 @@ def parse_jwt_expiration(token: str) -> Optional[int]:
         return None
 
 
-def is_vaild_jwt_format(token):
+def is_valid_jwt_format(token: str) -> bool:
     try:
         jwt.decode(token, options={"verify_signature": False, "verify_exp": False})
         return True
@@ -58,12 +58,12 @@ def is_vaild_jwt_format(token):
         return False
 
 
-def is_jwt_expired(token: str) -> bool:
+def is_access_token_expired(token: str) -> bool:
     """
-    Check whether the JWT token for the specified account has expired.
+    Check whether the access token for the specified account has expired.
 
     Args:
-        jwt (str): JWT string to check.
+        token (str): JWT string to check.
 
     Returns:
         bool: True if the token is expired, about to expire, or its expiration
