@@ -32,7 +32,7 @@ def render():
     # render_recent_operations()
 
     # Update last refresh time
-    st.session_state.last_refresh = datetime.now()
+    st.session_state.last_refresh = datetime.now(DEFAULT_TIMEZONE)
 
 
 def render_system_overview(config_helper):
@@ -226,11 +226,11 @@ def render_activity_statistics(accounts: List[Dict[str, Any]]):
     st.write("**帐户活动统计**")
 
     # Show account creation times
-    current_time = datetime.now()
+    current_time = datetime.now(DEFAULT_TIMEZONE)
     for account in accounts:
         created_time = account.get('created_time')
         if created_time:
-            created_dt = datetime.fromtimestamp(created_time)
+            created_dt = datetime.fromtimestamp(created_time, tz=DEFAULT_TIMEZONE)
             days_old = (current_time - created_dt).days
             st.write(
                 f"👤 {account['name']}: 建立于 {created_dt.strftime('%Y-%m-%d')} ({days_old} 天前)"
@@ -308,8 +308,8 @@ def generate_warnings(accounts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
         # Check for token expiration in near future
         access_expires_at = account.get('access_expires_at')
         if access_expires_at:
-            expires_dt = datetime.fromtimestamp(access_expires_at)
-            time_until_expiry = expires_dt - datetime.now()
+            expires_dt = datetime.fromtimestamp(access_expires_at, tz=DEFAULT_TIMEZONE)
+            time_until_expiry = expires_dt - datetime.now(DEFAULT_TIMEZONE)
 
             if time_until_expiry < timedelta(minutes=30):
                 warnings.append(
@@ -328,45 +328,49 @@ def render_quick_actions():
     """Render quick action buttons"""
     st.subheader("快速操作")
 
-    col1, col2, col3 = st.columns(3)
+    # Display daemon status information
+    daemon_reader = st.session_state.get('daemon_status_reader')
+    if daemon_reader:
+        summary = daemon_reader.get_daemon_summary()
 
-    with col1:
-        if st.button("🔄 刷新所有 Access Token", key="refresh_all_access"):
-            # Use background task system if available
-            background_tasks = st.session_state.get('background_tasks')
-            if background_tasks:
-                task_id = background_tasks.add_refresh_access_tokens_task(priority=5)
-                st.success(f"✅ 已添加全部刷新任務到背景隊列 (ID: {task_id[:8]})")
-            else:
-                # Fallback to direct execution
-                config_helper = st.session_state.get('config_helper')
-                if config_helper:
-                    with st.spinner("正在刷新 Access Token..."):
-                        success = config_helper.refresh_all_access_tokens()
-                        if success:
-                            st.success("✅ 所有 Access Token 刷新成功")
-                            st.session_state.last_refresh = datetime.now()
-                        else:
-                            st.error("❌ 部分 Access Token 刷新失败")
+        col1, col2, col3 = st.columns(3)
 
-    with col2:
-        if st.button("📊 检查所有配额", key="check_all_quotas"):
-            # Use background task system if available
-            background_tasks = st.session_state.get('background_tasks')
-            if background_tasks:
-                task_id = background_tasks.add_check_quotas_task(priority=3)
-                st.success(f"✅ 已添加配額檢查任務到背景隊列 (ID: {task_id[:8]})")
-            else:
-                # Fallback to direct execution
-                config_helper = st.session_state.get('config_helper')
-                if config_helper:
-                    with st.spinner("正在检查配额..."):
-                        success = config_helper.check_all_quotas()
-                        if success:
-                            st.success("✅ 所有配额检查完成")
-                            st.session_state.last_refresh = datetime.now()
-                        else:
-                            st.error("❌ 部分配额检查失败")
+        with col1:
+            st.metric(
+                label="🔄 Daemon 狀態",
+                value="運行中" if summary['is_running'] else "已停止",
+                delta="正常" if summary['is_running'] else "異常",
+            )
+
+        with col2:
+            st.metric(
+                label="⏱️ 運行時間", value=summary['uptime'], delta=f"{summary['jobs_count']} 個任務"
+            )
+
+        with col3:
+            st.metric(
+                label="📊 執行統計",
+                value=f"成功 {summary['recent_success_count']}",
+                delta=f"失敗 {summary['recent_error_count']}",
+            )
+
+        # Show next job runs
+        st.write("**即將執行的任務:**")
+        next_runs = daemon_reader.get_next_job_runs()
+        if next_runs:
+            for job_run in next_runs[:3]:  # Show next 3 jobs
+                time_until = job_run['next_run_datetime'] - datetime.now(DEFAULT_TIMEZONE)
+                if time_until.total_seconds() > 0:
+                    hours = int(time_until.total_seconds() // 3600)
+                    minutes = int((time_until.total_seconds() % 3600) // 60)
+                    time_str = f"{hours}小時{minutes}分鐘後"
+                else:
+                    time_str = "即將執行"
+                st.info(f"🔄 {job_run['job_name']} - {time_str}")
+        else:
+            st.info("📝 目前沒有即將執行的任務")
+    else:
+        st.warning("⚠️ 無法連接到 Daemon 服務")
 
     # with col3:
     #     # Backup configuration button (separate row)

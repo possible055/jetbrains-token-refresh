@@ -36,9 +36,11 @@ RUN chmod +x main.py
 # 8501 for Streamlit web interface
 EXPOSE 8501
 
-# 健康檢查
-HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:8501/_stcore/health || exit 1
+# 健康檢查 - 檢查 Web UI 和 Daemon 狀態
+HEALTHCHECK --interval=30s --timeout=10s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8501/_stcore/health && \
+        test -f /app/logs/daemon_status.json && \
+        test $(find /app/logs/daemon_status.json -mmin -2 | wc -l) -gt 0 || exit 1
 
-# 預設命令：啟動 Web UI
-CMD ["python", "main.py", "--web", "--web-port", "8501"]
+# 預設命令：啟動完整服務（前端 + 後端）
+CMD ["python", "main.py", "--web-port", "8501"]

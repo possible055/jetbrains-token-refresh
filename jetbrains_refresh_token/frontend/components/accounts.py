@@ -105,22 +105,14 @@ def render_account_card(account: Dict[str, Any], config_helper):
             st.write("**操作:**")
 
             if st.button("🔄 刷新 Access Token", key=f"refresh_access_{account['name']}"):
-                # Use background task system if available
-                background_tasks = st.session_state.get('background_tasks')
-                if background_tasks:
-                    task_id = background_tasks.add_refresh_access_tokens_task(
-                        account_name=account['name'], forced=False, priority=5
-                    )
-                    st.success(f"✅ 已添加刷新任務到背景隊列 (ID: {task_id[:8]})")
-                else:
-                    # Fallback to direct execution
-                    with st.spinner("正在刷新 Access Token..."):
-                        success = config_helper.refresh_account_access_token(account['name'])
-                        if success:
-                            st.success("✅ Access Token 刷新成功")
-                            st.rerun()
-                        else:
-                            st.error("❌ Access Token 刷新失敗")
+                # Direct execution (background tasks handled by daemon)
+                with st.spinner("正在刷新 Access Token..."):
+                    success = config_helper.refresh_account_access_token(account['name'])
+                    if success:
+                        st.success("✅ Access Token 刷新成功")
+                        st.rerun()
+                    else:
+                        st.error("❌ Access Token 刷新失敗")
 
             if st.button("📊 檢查配額", key=f"check_quota_{account['name']}"):
                 with st.spinner("正在檢查配額..."):
@@ -314,51 +306,31 @@ def render_batch_operations(config_helper):
 
     with col1:
         if st.button("🔄 批次刷新 Access Token", key="batch_refresh_access"):
-            # Use background task system if available
-            background_tasks = st.session_state.get('background_tasks')
-            if background_tasks:
-                task_ids = []
+            # Direct execution (background tasks handled by daemon)
+            with st.spinner("正在批次刷新 Access Token..."):
+                success_count = 0
                 for account_name in selected_accounts:
-                    task_id = background_tasks.add_refresh_access_tokens_task(
-                        account_name=account_name, forced=False, priority=5
-                    )
-                    task_ids.append(task_id[:8])
-                st.success(f"✅ 已添加 {len(selected_accounts)} 個刷新任務到背景隊列")
-                st.info(f"任務 ID: {', '.join(task_ids)}")
-            else:
-                # Fallback to direct execution
-                with st.spinner("正在批次刷新 Access Token..."):
-                    success_count = 0
-                    for account_name in selected_accounts:
-                        if config_helper.refresh_account_access_token(account_name):
-                            success_count += 1
+                    if config_helper.refresh_account_access_token(account_name):
+                        success_count += 1
 
-                    if success_count == len(selected_accounts):
-                        st.success(
-                            f"✅ 所有 {len(selected_accounts)} 個帳戶的 Access Token 刷新成功"
-                        )
-                    else:
-                        st.warning(
-                            f"⚠️ {success_count}/{len(selected_accounts)} 個帳戶的 Access Token 刷新成功"
-                        )
-                    st.rerun()
+                if success_count == len(selected_accounts):
+                    st.success(f"✅ 所有 {len(selected_accounts)} 個帳戶的 Access Token 刷新成功")
+                else:
+                    st.warning(
+                        f"⚠️ {success_count}/{len(selected_accounts)} 個帳戶的 Access Token 刷新成功"
+                    )
+                st.rerun()
 
     with col2:
         if st.button("📊 批次檢查配額", key="batch_check_quota"):
-            # Use background task system if available
-            background_tasks = st.session_state.get('background_tasks')
-            if background_tasks:
-                task_id = background_tasks.add_check_quotas_task(priority=3)
-                st.success(f"✅ 已添加配額檢查任務到背景隊列 (ID: {task_id[:8]})")
-            else:
-                # Fallback to direct execution
-                with st.spinner("正在批次檢查配額..."):
-                    success = config_helper.check_all_quotas()
-                    if success:
-                        st.success("✅ 所有帳戶的配額檢查完成")
-                    else:
-                        st.error("❌ 部分帳戶的配額檢查失敗")
-                    st.rerun()
+            # Direct execution (background tasks handled by daemon)
+            with st.spinner("正在批次檢查配額..."):
+                success = config_helper.check_all_quotas()
+                if success:
+                    st.success("✅ 所有帳戶的配額檢查完成")
+                else:
+                    st.error("❌ 部分帳戶的配額檢查失敗")
+                st.rerun()
 
     # Batch delete warning
     st.markdown("---")

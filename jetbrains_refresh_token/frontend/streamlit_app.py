@@ -5,17 +5,14 @@ import streamlit as st
 
 from jetbrains_refresh_token.frontend.components import (
     accounts,
-    background_tasks_status,
+    daemon_status,
     dashboard,
     quotas,
     settings,
     tokens,
 )
-from jetbrains_refresh_token.frontend.services.background_tasks import (
-    BackgroundTasks as BackgroundTasksClass,
-)
-from jetbrains_refresh_token.frontend.services.scheduler_service import (
-    SchedulerService as SchedulerServiceClass,
+from jetbrains_refresh_token.frontend.services.daemon_status_reader import (
+    DaemonStatusReader,
 )
 from jetbrains_refresh_token.frontend.utils.config_helper import ConfigHelper
 from jetbrains_refresh_token.frontend.utils.state_manager import PersistentStateManager
@@ -88,27 +85,9 @@ def initialize_app():
     # Initialize persistent state
     st.session_state.state_manager.init_session_state()
 
-    # Initialize background services if available
-    if 'scheduler_service' not in st.session_state:
-        current_session_id = st.session_state.get('session_id', 'system')
-        st.session_state.scheduler_service = SchedulerServiceClass(
-            config_helper=st.session_state.config_helper,
-            state_manager=st.session_state.state_manager,
-            session_id=current_session_id,
-        )
-
-    if 'background_tasks' not in st.session_state:
-        current_session_id = st.session_state.get('session_id', 'system')
-        st.session_state.background_tasks = BackgroundTasksClass(
-            config_helper=st.session_state.config_helper,
-            state_manager=st.session_state.state_manager,
-            session_id=current_session_id,
-        )
-
-    # Start scheduler if not already running
-    if not st.session_state.scheduler_service.is_running:
-        st.session_state.scheduler_service.start()
-        st.session_state.scheduler_service.setup_default_jobs()
+    # Initialize daemon status reader
+    if 'daemon_status_reader' not in st.session_state:
+        st.session_state.daemon_status_reader = DaemonStatusReader()
 
 
 def render_sidebar():
@@ -150,43 +129,9 @@ def render_sidebar():
     except Exception as e:
         st.sidebar.error(f"配置档案: 无法读取 ({str(e)})")
 
-    # # Background services status
-    # if 'scheduler_service' in st.session_state:
-    #     scheduler_service = st.session_state.scheduler_service
-    #     if scheduler_service is not None:
-    #         scheduler_status = scheduler_service.get_status()
-    #         if scheduler_status['running']:
-    #             st.sidebar.success(f"背景服务: 运行中 ({scheduler_status['jobs_count']} 个任务)")
-    #         else:
-    #             st.sidebar.warning("背景服务: 已停止")
-    #     else:
-    #         st.sidebar.info("背景服务: 未启用")
-    # else:
-    #     st.sidebar.info("背景服务: 未启用")
+    # Background services are now handled by daemon
 
-    # Quick actions
-    # st.sidebar.subheader("快捷操作")
-
-    # col1, col2 = st.sidebar.columns(2)
-    # with col1:
-    #     if st.button("🔄", key="refresh"):
-    #         st.session_state.config_helper.refresh_config()
-    #         st.rerun()
-
-    # with col2:
-    #     if st.button("💾", key="backup"):
-    #         # Use background task system if available
-    #         background_tasks = st.session_state.get('background_tasks')
-    #         if background_tasks:
-    #             task_id = background_tasks.add_backup_config_task(priority=1)
-    #             st.sidebar.success(f"已添加備份任務 (ID: {task_id[:8]})")
-    #         else:
-    #             # Fallback to direct execution
-    #             success = st.session_state.config_helper.backup_config()
-    #             if success:
-    #                 st.sidebar.success("备份成功")
-    #             else:
-    #                 st.sidebar.error("备份失败")
+    # Quick actions are now handled by daemon
 
 
 def render_main_content():
@@ -202,7 +147,7 @@ def render_main_content():
     elif current_page == 'quotas':
         quotas.render()
     elif current_page == 'background_tasks':
-        background_tasks_status.render()
+        daemon_status.render_daemon_status()
     elif current_page == 'settings':
         settings.render()
     else:

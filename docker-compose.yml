@@ -1,22 +1,27 @@
+version: '3.8'
+
 services:
-  jetbrains-proxy:
+  # JetBrains Token Manager - 統一服務（前端 + 後端）
+  jetbrains-token-manager:
     build:
       context: .
       dockerfile: Dockerfile
-    container_name: jetbrains-proxy
+    container_name: jetbrains-token-manager
     ports:
       - "8501:8501"
     volumes:
       - ./config.json:/app/config.json:ro
       - ./jetbrainsai.json:/app/jetbrainsai.json
       - ./logs:/app/logs
+    environment:
+      - PYTHONUNBUFFERED=1
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 10s
 
   # JetBrains AI to API 服務 - 獨立服務，只共用 jetbrainsai.json
   # jetbrainsai2api:
@@ -34,4 +39,4 @@ services:
 
 networks:
   default:
-    name: jetbrains-network
+    name: jetbrains-token-manager

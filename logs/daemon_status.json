@@ -1,0 +1,40 @@
+{
+  "daemon_status": "running",
+  "start_time": "2025-07-12T12:06:35.536655",
+  "last_update": "2025-07-12T12:08:35.541262",
+  "uptime_seconds": 120.004622,
+  "jobs": {
+    "health_check": {
+      "name": "Daemon Health Check",
+      "next_run_time": "2025-07-12T12:09:35.537934+08:00",
+      "trigger": "interval[0:01:00]",
+      "max_instances": 1
+    },
+    "quota_check": {
+      "name": "JetBrains Quota Check",
+      "next_run_time": "2025-07-12T12:10:35.537847+08:00",
+      "trigger": "interval[0:02:00]",
+      "max_instances": 1
+    },
+    "token_refresh": {
+      "name": "JetBrains Token Refresh",
+      "next_run_time": "2025-07-12T12:11:35.537692+08:00",
+      "trigger": "interval[0:05:00]",
+      "max_instances": 1
+    }
+  },
+  "job_history": [
+    {
+      "job_id": "health_check",
+      "scheduled_time": "2025-07-12T12:07:35.537934+08:00",
+      "execution_time": "2025-07-12T12:07:35.538881+00:00",
+      "status": "success",
+      "duration": 0
+    }
+  ],
+  "config_path": "config.json",
+  "health": {
+    "status": "healthy",
+    "last_check": "2025-07-12T12:08:35.541289"
+  }
+}

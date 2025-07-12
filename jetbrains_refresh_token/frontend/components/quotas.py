@@ -206,22 +206,14 @@ def render_account_quota_details(account: Dict[str, Any], config_helper):
 
         # Refresh quota button
         if st.button("🔄 重新檢查配額", key=f"refresh_quota_{account['name']}"):
-            # Use background task system if available
-            background_tasks = st.session_state.get('background_tasks')
-            if background_tasks:
-                task_id = background_tasks.add_check_quotas_task(
-                    account_name=account['name'], priority=3
-                )
-                st.success(f"✅ 已添加配額檢查任務到背景隊列 (ID: {task_id[:8]})")
-            else:
-                # Fallback to direct execution
-                with st.spinner("正在重新檢查配額..."):
-                    success = config_helper.check_all_quotas()
-                    if success:
-                        st.success("✅ 配額檢查完成")
-                        st.rerun()
-                    else:
-                        st.error("❌ 配額檢查失敗")
+            # Direct execution (background tasks handled by daemon)
+            with st.spinner("正在重新檢查配額..."):
+                success = config_helper.check_all_quotas()
+                if success:
+                    st.success("✅ 配額檢查完成")
+                    st.rerun()
+                else:
+                    st.error("❌ 配額檢查失敗")
 
         # # Quota history (if available)
         # st.subheader("📋 配額歷史")

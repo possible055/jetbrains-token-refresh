@@ -1,0 +1,32 @@
+{
+  "scheduler_status": "running",
+  "start_time": "2025-07-12T10:34:54.966446",
+  "last_update": "2025-07-12T10:39:54.969100",
+  "uptime_seconds": 300.002663,
+  "jobs": {
+    "health_check": {
+      "name": "Scheduler Health Check",
+      "next_run_time": "2025-07-12T10:44:54.967962+08:00",
+      "trigger": "interval[0:05:00]",
+      "max_instances": 1
+    },
+    "token_refresh": {
+      "name": "JetBrains Token Refresh",
+      "next_run_time": "2025-07-12T11:04:54.967731+08:00",
+      "trigger": "interval[0:30:00]",
+      "max_instances": 1
+    },
+    "quota_check": {
+      "name": "JetBrains Quota Check",
+      "next_run_time": "2025-07-12T12:34:54.967882+08:00",
+      "trigger": "interval[2:00:00]",
+      "max_instances": 1
+    }
+  },
+  "job_history": [],
+  "config_path": "config.json",
+  "health": {
+    "status": "healthy",
+    "last_check": "2025-07-12T10:39:54.969115"
+  }
+}

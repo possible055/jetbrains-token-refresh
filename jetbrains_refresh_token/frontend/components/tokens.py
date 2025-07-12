@@ -226,45 +226,25 @@ def render_access_token_details(account: Dict[str, Any], config_helper):
 
     with col1:
         if st.button("🔄 手動刷新", key=f"refresh_access_detail_{account['name']}"):
-            # Use background task system if available
-            background_tasks = st.session_state.get('background_tasks')
-            if background_tasks:
-                task_id = background_tasks.add_refresh_access_tokens_task(
-                    account_name=account['name'], forced=False, priority=5
-                )
-                st.success(f"✅ 已添加刷新任務到背景隊列 (ID: {task_id[:8]})")
-            else:
-                # Fallback to direct execution
-                with st.spinner("正在刷新 Access Token..."):
-                    success = config_helper.refresh_account_access_token(
-                        account['name'], forced=False
-                    )
-                    if success:
-                        st.success("✅ Access Token 刷新成功")
-                        st.rerun()
-                    else:
-                        st.error("❌ Access Token 刷新失敗")
+            # Direct execution (background tasks handled by daemon)
+            with st.spinner("正在刷新 Access Token..."):
+                success = config_helper.refresh_account_access_token(account['name'], forced=False)
+                if success:
+                    st.success("✅ Access Token 刷新成功")
+                    st.rerun()
+                else:
+                    st.error("❌ Access Token 刷新失敗")
 
     with col2:
         if st.button("🔄 強制刷新", key=f"force_refresh_access_detail_{account['name']}"):
-            # Use background task system if available
-            background_tasks = st.session_state.get('background_tasks')
-            if background_tasks:
-                task_id = background_tasks.add_refresh_access_tokens_task(
-                    account_name=account['name'], forced=True, priority=8
-                )
-                st.success(f"✅ 已添加強制刷新任務到背景隊列 (ID: {task_id[:8]})")
-            else:
-                # Fallback to direct execution
-                with st.spinner("正在強制刷新 Access Token..."):
-                    success = config_helper.refresh_account_access_token(
-                        account['name'], forced=True
-                    )
-                    if success:
-                        st.success("✅ Access Token 強制刷新成功")
-                        st.rerun()
-                    else:
-                        st.error("❌ Access Token 強制刷新失敗")
+            # Direct execution (background tasks handled by daemon)
+            with st.spinner("正在強制刷新 Access Token..."):
+                success = config_helper.refresh_account_access_token(account['name'], forced=True)
+                if success:
+                    st.success("✅ Access Token 強制刷新成功")
+                    st.rerun()
+                else:
+                    st.error("❌ Access Token 強制刷新失敗")
 
 
 # def render_token_history():
@@ -360,12 +340,12 @@ def get_token_health_score(accounts: List[Dict[str, Any]]) -> float:
 
 def predict_next_refresh_time(account: Dict[str, Any]) -> datetime:
     """Predict when the next token refresh will be needed"""
-    now = datetime.now()
+    now = datetime.now(DEFAULT_TIMEZONE)
     next_refresh = now + timedelta(days=30)  # Default to 30 days from now
 
     # Check access token expiration
     if account['access_expires_at']:
-        access_expires = datetime.fromtimestamp(account['access_expires_at'])
+        access_expires = datetime.fromtimestamp(account['access_expires_at'], tz=DEFAULT_TIMEZONE)
         # Refresh 5 minutes before expiration
         access_refresh_time = access_expires - timedelta(minutes=5)
         if access_refresh_time > now:
