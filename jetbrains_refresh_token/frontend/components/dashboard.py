@@ -3,6 +3,8 @@ from typing import Any, Dict, List
 
 import streamlit as st
 
+from jetbrains_refresh_token.constants import DEFAULT_TIMEZONE
+
 
 def render():
     """Render the dashboard page"""
@@ -26,8 +28,8 @@ def render():
     # Statistics section
     render_statistics_section(config_helper)
 
-    # Recent operations section
-    render_recent_operations()
+    # # Recent operations section
+    # render_recent_operations()
 
     # Update last refresh time
     st.session_state.last_refresh = datetime.now()
@@ -42,7 +44,7 @@ def render_system_overview(config_helper):
     accounts = config_helper.get_accounts()
 
     # Create columns for overview cards
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3 = st.columns(3)
 
     with col1:
         st.markdown(
@@ -81,19 +83,19 @@ def render_system_overview(config_helper):
             unsafe_allow_html=True,
         )
 
-    with col4:
-        last_refresh = st.session_state.get('last_refresh')
-        refresh_time = last_refresh.strftime('%H:%M:%S') if last_refresh else '未知'
-        st.markdown(
-            f"""
-        <div class="status-card">
-            <h4>🔄 最后更新</h4>
-            <p><strong>状态:</strong> {'🟢 已同步' if last_refresh else '⚪ 未同步'}</p>
-            <p><strong>时间:</strong> {refresh_time}</p>
-        </div>
-        """,
-            unsafe_allow_html=True,
-        )
+    # with col4:
+    #     last_refresh = st.session_state.get('last_refresh')
+    #     refresh_time = last_refresh.strftime('%H:%M:%S') if last_refresh else '未知'
+    #     st.markdown(
+    #         f"""
+    #     <div class="status-card">
+    #         <h4>🔄 最后更新</h4>
+    #         <p><strong>状态:</strong> {'🟢 已同步' if last_refresh else '⚪ 未同步'}</p>
+    #         <p><strong>时间:</strong> {refresh_time}</p>
+    #     </div>
+    #     """,
+    #         unsafe_allow_html=True,
+    #     )
 
 
 def render_warnings_section(config_helper):
@@ -237,28 +239,32 @@ def render_activity_statistics(accounts: List[Dict[str, Any]]):
             st.write(f"👤 {account['name']}: 建立时间未知")
 
 
-def render_recent_operations():
-    """Render recent operations section"""
-    st.subheader("最近操作")
+# def render_recent_operations():
+#     """Render recent operations section"""
+#     st.subheader("最近操作")
 
-    # Get session logs from state manager
-    state_manager = st.session_state.get('state_manager')
-    if not state_manager:
-        st.info("📝 无操作记录")
-        return
+#     # Get session logs from state manager
+#     state_manager = st.session_state.get('state_manager')
+#     if not state_manager:
+#         st.info("📝 无操作记录")
+#         return
 
-    session_id = st.session_state.get('session_id', '')
-    logs = state_manager.get_session_logs(session_id, limit=10)
+#     session_id = st.session_state.get('session_id', '')
+#     logs = state_manager.get_session_logs(session_id, limit=10)
 
-    if not logs:
-        st.info("📝 本次会话尚无操作记录")
-        return
+#     if not logs:
+#         st.info("📝 本次会话尚无操作记录")
+#         return
 
-    for action, details, timestamp in logs:
-        formatted_time = datetime.fromisoformat(timestamp).strftime('%H:%M:%S')
-        st.write(f"🕐 {formatted_time} - {action}")
-        if details:
-            st.write(f"   └─ {details}")
+#     for action, details, timestamp in logs:
+#         # Parse timestamp and ensure it has timezone info
+#         dt = datetime.fromisoformat(timestamp)
+#         if dt.tzinfo is None:
+#             dt = dt.replace(tzinfo=DEFAULT_TIMEZONE)
+#         formatted_time = dt.strftime('%H:%M:%S')
+#         st.write(f"🕐 {formatted_time} - {action}")
+#         if details:
+#             st.write(f"   └─ {details}")
 
 
 def generate_warnings(accounts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -326,36 +332,50 @@ def render_quick_actions():
 
     with col1:
         if st.button("🔄 刷新所有 Access Token", key="refresh_all_access"):
-            config_helper = st.session_state.get('config_helper')
-            if config_helper:
-                with st.spinner("正在刷新 Access Token..."):
-                    success = config_helper.refresh_all_access_tokens()
-                    if success:
-                        st.success("✅ 所有 Access Token 刷新成功")
-                        st.session_state.last_refresh = datetime.now()
-                    else:
-                        st.error("❌ 部分 Access Token 刷新失败")
+            # Use background task system if available
+            background_tasks = st.session_state.get('background_tasks')
+            if background_tasks:
+                task_id = background_tasks.add_refresh_access_tokens_task(priority=5)
+                st.success(f"✅ 已添加全部刷新任務到背景隊列 (ID: {task_id[:8]})")
+            else:
+                # Fallback to direct execution
+                config_helper = st.session_state.get('config_helper')
+                if config_helper:
+                    with st.spinner("正在刷新 Access Token..."):
+                        success = config_helper.refresh_all_access_tokens()
+                        if success:
+                            st.success("✅ 所有 Access Token 刷新成功")
+                            st.session_state.last_refresh = datetime.now()
+                        else:
+                            st.error("❌ 部分 Access Token 刷新失败")
 
     with col2:
         if st.button("📊 检查所有配额", key="check_all_quotas"):
-            config_helper = st.session_state.get('config_helper')
-            if config_helper:
-                with st.spinner("正在检查配额..."):
-                    success = config_helper.check_all_quotas()
-                    if success:
-                        st.success("✅ 所有配额检查完成")
-                        st.session_state.last_refresh = datetime.now()
-                    else:
-                        st.error("❌ 部分配额检查失败")
+            # Use background task system if available
+            background_tasks = st.session_state.get('background_tasks')
+            if background_tasks:
+                task_id = background_tasks.add_check_quotas_task(priority=3)
+                st.success(f"✅ 已添加配額檢查任務到背景隊列 (ID: {task_id[:8]})")
+            else:
+                # Fallback to direct execution
+                config_helper = st.session_state.get('config_helper')
+                if config_helper:
+                    with st.spinner("正在检查配额..."):
+                        success = config_helper.check_all_quotas()
+                        if success:
+                            st.success("✅ 所有配额检查完成")
+                            st.session_state.last_refresh = datetime.now()
+                        else:
+                            st.error("❌ 部分配额检查失败")
 
-    with col3:
-        # Backup configuration button (separate row)
-        if st.button("💾 备份配置", key="backup_config"):
-            config_helper = st.session_state.get('config_helper')
-            if config_helper:
-                with st.spinner("正在备份配置..."):
-                    success = config_helper.backup_config()
-                    if success:
-                        st.success("✅ 配置备份成功")
-                    else:
-                        st.error("❌ 配置备份失败")
+    # with col3:
+    #     # Backup configuration button (separate row)
+    #     if st.button("💾 备份配置", key="backup_config"):
+    #         config_helper = st.session_state.get('config_helper')
+    #         if config_helper:
+    #             with st.spinner("正在备份配置..."):
+    #                 success = config_helper.backup_config()
+    #                 if success:
+    #                     st.success("✅ 配置备份成功")
+    #                 else:
+    #                     st.error("❌ 配置备份失败")

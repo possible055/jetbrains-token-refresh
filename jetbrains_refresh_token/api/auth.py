@@ -39,9 +39,10 @@ def refresh_expired_access_tokens(is_forced: bool = False) -> bool:
         license_id = account_data.get("license_id")
         current_access_token = account_data.get("access_token")
 
-        if not all([current_access_token, id_token, license_id]):
+        # Check for required fields - access_token can be empty for initial refresh
+        if not all([id_token, license_id]):
             logger.error(
-                "Missing required fields for account '%s': id_token, license_id, or access_token.",
+                "Missing required fields for account '%s': id_token or license_id.",
                 account_name,
             )
             all_successful = False
@@ -73,9 +74,6 @@ def refresh_expired_access_tokens(is_forced: bool = False) -> bool:
             )
             all_successful = False
             continue
-
-        if current_access_token != "N/A":
-            config["accounts"][account_name]["previous_access_token"] = current_access_token
 
         config["accounts"][account_name]["access_token"] = new_access_token
 
@@ -121,9 +119,10 @@ def refresh_expired_access_token(account_name: str, is_forced: bool = False) -> 
     license_id = account_data.get("license_id")
     current_access_token = account_data.get("access_token")
 
-    if not all([current_access_token, id_token, license_id]):
+    # Check for required fields - access_token can be empty for initial refresh
+    if not all([id_token, license_id]):
         logger.error(
-            "Missing required fields for account '%s': id_token, license_id, or access_token.",
+            "Missing required fields for account '%s': id_token or license_id.",
             account_name,
         )
         return False
@@ -154,9 +153,6 @@ def refresh_expired_access_token(account_name: str, is_forced: bool = False) -> 
             account_name,
         )
         return False
-
-    if current_access_token != "N/A":
-        config["accounts"][account_name]["previous_access_token"] = current_access_token
 
     config["accounts"][account_name]["access_token"] = new_access_token
 

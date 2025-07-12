@@ -6,6 +6,8 @@ from typing import Any, Dict
 
 import streamlit as st
 
+from jetbrains_refresh_token.constants import DEFAULT_TIMEZONE
+
 
 def render():
     """Render the settings page"""
@@ -37,7 +39,7 @@ def render():
         render_import_export(config_helper)
 
     with tab5:
-        render_advanced_settings(config_helper)
+        render_advanced_settings()
 
 
 def render_app_settings():
@@ -178,10 +180,12 @@ Python 路徑: {sys.executable}
     # Runtime info
     st.write("**運行時資訊:**")
 
-    current_time = datetime.now()
+    current_time = datetime.now(DEFAULT_TIMEZONE)
     session_id = st.session_state.get('session_id', 'N/A')
+    startup_time = st.session_state.get('app_startup_time', 'N/A')
 
-    st.write(f"當前時間: {current_time.strftime('%Y-%m-%d %H:%M:%S')}")
+    st.write(f"當前時間: {current_time.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+    st.write(f"應用啟動時間: {startup_time}")
     st.write(f"會話 ID: {session_id}")
 
     # Memory and performance info (basic)
@@ -237,7 +241,11 @@ def render_logs_viewer(state_manager):
 
     with log_container:
         for i, (action, details, timestamp) in enumerate(logs):
-            formatted_time = datetime.fromisoformat(timestamp).strftime('%Y-%m-%d %H:%M:%S')
+            # Parse timestamp and ensure it has timezone info
+            dt = datetime.fromisoformat(timestamp)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=DEFAULT_TIMEZONE)
+            formatted_time = dt.strftime('%Y-%m-%d %H:%M:%S %Z')
 
             # Create expandable log entry
             with st.expander(f"🕐 {formatted_time} - {action}", expanded=i < 5):
@@ -246,7 +254,7 @@ def render_logs_viewer(state_manager):
                 else:
                     st.write("無詳細資訊")
 
-                st.write(f"**時間戳記:** {timestamp}")
+                st.write(f"**時間戳記:** {formatted_time}")
 
     # Log management
     st.write("**日誌管理:**")
@@ -357,7 +365,7 @@ def render_import_export(config_helper):
             )
 
             if st.button("📤 確認匯入", key="confirm_import"):
-                success = import_configuration(config_helper, config_data, merge_mode)
+                success = import_configuration(merge_mode)
 
                 if success:
                     st.success("✅ 配置匯入成功")
@@ -369,7 +377,7 @@ def render_import_export(config_helper):
             st.error(f"❌ 檔案格式錯誤: {str(e)}")
 
 
-def render_advanced_settings(config_helper):
+def render_advanced_settings():
     """Render advanced settings"""
     st.subheader("🔧 進階設定")
 
@@ -501,7 +509,7 @@ def generate_csv_export(config_data: Dict[str, Any]) -> str:
     return csv_content
 
 
-def import_configuration(config_helper, config_data: Dict[str, Any], merge_mode: str) -> bool:
+def import_configuration(merge_mode: str) -> bool:
     """Import configuration data"""
     try:
         if merge_mode == "覆蓋現有配置":

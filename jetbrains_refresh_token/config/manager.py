@@ -130,22 +130,22 @@ def export_to_another_format() -> bool:
         id_token = account_data.get("id_token")
         license_id = account_data.get("license_id")
 
-        if all([access_token, id_token, license_id]):
+        # Only require id_token and license_id, access_token can be empty for initial state
+        if all([id_token, license_id]) and access_token:
             external_config.append(
                 {"jwt": access_token, "licenseId": license_id, "authorization": id_token}
             )
 
-        with open(COMPATIBLE_CONFIG_PATH, 'w', encoding='utf-8') as file:
-            json.dump(external_config, file, indent=2, ensure_ascii=False)
+    # Write the file after processing all accounts
+    with open(COMPATIBLE_CONFIG_PATH, 'w', encoding='utf-8') as file:
+        json.dump(external_config, file, indent=2, ensure_ascii=False)
 
-        logger.info(
-            "Successfully exported %d account(s) to jetbrainsai format: %s",
-            len(external_config),
-            COMPATIBLE_CONFIG_PATH,
-        )
-        return True
-
-    return False
+    logger.info(
+        "Successfully exported %d account(s) to jetbrainsai format: %s",
+        len(external_config),
+        COMPATIBLE_CONFIG_PATH,
+    )
+    return True
 
 
 def save_quota_info(

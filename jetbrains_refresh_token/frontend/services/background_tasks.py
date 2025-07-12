@@ -108,9 +108,10 @@ class BackgroundTask:
 class BackgroundTasks:
     """Background task management system"""
 
-    def __init__(self, config_helper=None, state_manager=None):
+    def __init__(self, config_helper=None, state_manager=None, session_id=None):
         self.config_helper = config_helper
         self.state_manager = state_manager
+        self.session_id = session_id or 'background_system'
         self.tasks = {}
         self.task_history = []
         self.max_history = 100
@@ -137,17 +138,8 @@ class BackgroundTasks:
             self.worker_threads.append(worker)
 
         if self.state_manager:
-            # Get session_id safely
-            session_id = 'system'
-            try:
-                import streamlit as st
-
-                session_id = st.session_state.get('session_id', 'system')
-            except:
-                session_id = 'system'
-
             self.state_manager.log_action(
-                session_id,
+                self.session_id,
                 "Background workers started",
                 f"Started {self.max_workers} worker threads",
             )
@@ -157,17 +149,8 @@ class BackgroundTasks:
         self.running = False
 
         if self.state_manager:
-            # Get session_id safely
-            session_id = 'system'
-            try:
-                import streamlit as st
-
-                session_id = st.session_state.get('session_id', 'system')
-            except:
-                session_id = 'system'
-
             self.state_manager.log_action(
-                session_id,
+                self.session_id,
                 "Background workers stopped",
                 f"Stopped {len(self.worker_threads)} worker threads",
             )
@@ -199,21 +182,12 @@ class BackgroundTasks:
 
                 else:
                     # No tasks available, sleep briefly
-                    time.sleep(0.1)
+                    time.sleep(1.0)  # Reduced polling frequency from 0.1s to 1s
 
             except Exception as e:
                 if self.state_manager:
-                    # Get session_id safely
-                    session_id = 'system'
-                    try:
-                        import streamlit as st
-
-                        session_id = st.session_state.get('session_id', 'system')
-                    except:
-                        session_id = 'system'
-
                     self.state_manager.log_action(
-                        session_id, f"Worker {worker_id} error", f"Error: {str(e)}"
+                        self.session_id, f"Worker {worker_id} error", f"Error: {str(e)}"
                     )
                 time.sleep(1)
 
@@ -263,17 +237,8 @@ class BackgroundTasks:
             self.task_queue.append(task)
 
         if self.state_manager:
-            # Get session_id safely
-            session_id = 'system'
-            try:
-                import streamlit as st
-
-                session_id = st.session_state.get('session_id', 'system')
-            except:
-                session_id = 'system'
-
             self.state_manager.log_action(
-                session_id,
+                self.session_id,
                 f"Added background task: {name}",
                 f"Task ID: {task_id}, Priority: {priority}",
             )
@@ -313,17 +278,8 @@ class BackgroundTasks:
                 success = task.cancel()
 
                 if success and self.state_manager:
-                    # Get session_id safely
-                    session_id = 'system'
-                    try:
-                        import streamlit as st
-
-                        session_id = st.session_state.get('session_id', 'system')
-                    except:
-                        session_id = 'system'
-
                     self.state_manager.log_action(
-                        session_id, f"Cancelled task: {task.name}", f"Task ID: {task_id}"
+                        self.session_id, f"Cancelled task: {task.name}", f"Task ID: {task_id}"
                     )
 
                 return success
@@ -429,17 +385,8 @@ class BackgroundTasks:
             self.task_history = []
 
         if self.state_manager:
-            # Get session_id safely
-            session_id = 'system'
-            try:
-                import streamlit as st
-
-                session_id = st.session_state.get('session_id', 'system')
-            except:
-                session_id = 'system'
-
             self.state_manager.log_action(
-                session_id, "Task history cleared", f"Cleared at {datetime.now().isoformat()}"
+                self.session_id, "Task history cleared", f"Cleared at {datetime.now().isoformat()}"
             )
 
     def get_active_tasks_by_status(self, status: str) -> List[Dict[str, Any]]:

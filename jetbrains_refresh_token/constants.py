@@ -1,15 +1,21 @@
 import logging
+import os
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 logger = logging.getLogger("jetbrain_refresh_token.constants")
 
 # Define paths
 BASE_PATH = Path(__file__).resolve().parent
 PROJECT_ROOT = BASE_PATH.parent
-LOG_PATH = PROJECT_ROOT / "logs"
-CONFIG_PATH = PROJECT_ROOT / "config.json"
+LOG_PATH = Path(os.getenv('LOG_PATH', PROJECT_ROOT / "logs"))
+CONFIG_PATH = Path(os.getenv('CONFIG_PATH', PROJECT_ROOT / "config.json"))
 CONFIG_BACKUP_PATH = PROJECT_ROOT / "config-backup.json"
+COMPATIBLE_CONFIG_PATH = Path(PROJECT_ROOT / "jetbrainsai.json")
 SCHEMA_PATH = BASE_PATH / 'config' / "config_schema.json"
+
+# Timezone configuration
+DEFAULT_TIMEZONE = ZoneInfo("Asia/Taipei")
 
 # Define constants for API endpoints
 # These URLs are used for OAuth and JWT token management

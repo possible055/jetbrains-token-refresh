@@ -22,7 +22,7 @@ def render():
     render_quota_details(config_helper)
 
     # Quota alerts section
-    render_quota_alerts(config_helper)
+    # render_quota_alerts(config_helper)
 
     # Quota management section
     render_quota_management(config_helper)
@@ -158,7 +158,7 @@ def render_quota_details(config_helper):
 
 def render_account_quota_details(account: Dict[str, Any], config_helper):
     """Render quota details for specific account"""
-    st.write(f"**帳戶:** {account['name']}")
+    # st.write(f"**帳戶:** {account['name']}")
 
     quota_info = account.get('quota_info', {})
 
@@ -193,55 +193,64 @@ def render_account_quota_details(account: Dict[str, Any], config_helper):
         # Usage progress bar
         st.progress(usage_percentage / 100)
 
-        # Usage level warnings
-        if usage_percentage > 90:
-            st.error("🚨 配額使用率超過 90%，請注意使用量")
-        elif usage_percentage > 80:
-            st.warning("⚠️ 配額使用率超過 80%，建議注意使用量")
-        else:
-            st.success("✅ 配額使用率正常")
+        # # Usage level warnings
+        # if usage_percentage > 90:
+        #     st.error("🚨 配額使用率超過 90%，請注意使用量")
+        # elif usage_percentage > 80:
+        #     st.warning("⚠️ 配額使用率超過 80%，建議注意使用量")
+        # else:
+        #     st.success("✅ 配額使用率正常")
 
     with col2:
         st.subheader("🔄 配額操作")
 
         # Refresh quota button
         if st.button("🔄 重新檢查配額", key=f"refresh_quota_{account['name']}"):
-            with st.spinner("正在重新檢查配額..."):
-                success = config_helper.check_all_quotas()
-                if success:
-                    st.success("✅ 配額檢查完成")
-                    st.rerun()
-                else:
-                    st.error("❌ 配額檢查失敗")
+            # Use background task system if available
+            background_tasks = st.session_state.get('background_tasks')
+            if background_tasks:
+                task_id = background_tasks.add_check_quotas_task(
+                    account_name=account['name'], priority=3
+                )
+                st.success(f"✅ 已添加配額檢查任務到背景隊列 (ID: {task_id[:8]})")
+            else:
+                # Fallback to direct execution
+                with st.spinner("正在重新檢查配額..."):
+                    success = config_helper.check_all_quotas()
+                    if success:
+                        st.success("✅ 配額檢查完成")
+                        st.rerun()
+                    else:
+                        st.error("❌ 配額檢查失敗")
 
         # # Quota history (if available)
         # st.subheader("📋 配額歷史")
         # st.info("配額歷史功能開發中...")
 
 
-def render_quota_alerts(config_helper):
-    """Render quota alerts and warnings"""
-    st.subheader("⚠️ 配額警告")
+# def render_quota_alerts(config_helper):
+#     """Render quota alerts and warnings"""
+#     st.subheader("⚠️ 配額警告")
 
-    accounts = config_helper.get_accounts()
-    quota_accounts = [acc for acc in accounts if acc.get('quota_info')]
+#     accounts = config_helper.get_accounts()
+#     quota_accounts = [acc for acc in accounts if acc.get('quota_info')]
 
-    alerts = generate_quota_alerts(quota_accounts)
+#     alerts = generate_quota_alerts(quota_accounts)
 
-    if not alerts:
-        st.success("✅ 沒有配額警告")
-        return
+#     if not alerts:
+#         st.success("✅ 沒有配額警告")
+#         return
 
-    # Display alerts
-    for alert in alerts:
-        alert_type = alert['type']
-        message = alert['message']
-        account = alert['account']
+#     # Display alerts
+#     for alert in alerts:
+#         alert_type = alert['type']
+#         message = alert['message']
+#         account = alert['account']
 
-        if alert_type == 'critical':
-            st.error(f"🚨 **{account}**: {message}")
-        elif alert_type == 'warning':
-            st.warning(f"⚠️ **{account}**: {message}")
+#         if alert_type == 'critical':
+#             st.error(f"🚨 **{account}**: {message}")
+#         elif alert_type == 'warning':
+#             st.warning(f"⚠️ **{account}**: {message}")
 
 
 def render_quota_management(config_helper):
@@ -263,49 +272,49 @@ def render_quota_management(config_helper):
                 else:
                     st.error("❌ 部分配額檢查失敗")
 
-    with col2:
-        if st.button("📥 導出配額報告", key="export_quota_report"):
-            quota_report = generate_quota_report(config_helper)
-            if quota_report:
-                st.download_button(
-                    label="📥 下載配額報告",
-                    data=quota_report,
-                    file_name=f"quota_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
-                    mime="application/json",
-                )
-            else:
-                st.error("❌ 無法生成配額報告")
+    # with col2:
+    #     if st.button("📥 導出配額報告", key="export_quota_report"):
+    #         quota_report = generate_quota_report(config_helper)
+    #         if quota_report:
+    #             st.download_button(
+    #                 label="📥 下載配額報告",
+    #                 data=quota_report,
+    #                 file_name=f"quota_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+    #                 mime="application/json",
+    #             )
+    #         else:
+    #             st.error("❌ 無法生成配額報告")
 
-    with col3:
-        if st.button("🔄 重置配額快取", key="reset_quota_cache"):
-            # Clear quota cache (if implemented)
-            st.info("配額快取重置功能開發中...")
+    # with col3:
+    #     if st.button("🔄 重置配額快取", key="reset_quota_cache"):
+    #         # Clear quota cache (if implemented)
+    #         st.info("配額快取重置功能開發中...")
 
     # Quota settings
-    st.write("**配額設定:**")
+    # st.write("**配額設定:**")
 
-    with st.expander("⚙️ 配額警告設定", expanded=False):
-        warning_threshold = st.slider(
-            "警告閾值 (%)",
-            min_value=50,
-            max_value=95,
-            value=80,
-            help="當配額使用率超過此值時顯示警告",
-        )
+    # with st.expander("⚙️ 配額警告設定", expanded=False):
+    #     warning_threshold = st.slider(
+    #         "警告閾值 (%)",
+    #         min_value=50,
+    #         max_value=95,
+    #         value=80,
+    #         help="當配額使用率超過此值時顯示警告",
+    #     )
 
-        critical_threshold = st.slider(
-            "危險閾值 (%)",
-            min_value=85,
-            max_value=100,
-            value=90,
-            help="當配額使用率超過此值時顯示危險警告",
-        )
+    #     critical_threshold = st.slider(
+    #         "危險閾值 (%)",
+    #         min_value=85,
+    #         max_value=100,
+    #         value=90,
+    #         help="當配額使用率超過此值時顯示危險警告",
+    #     )
 
-        if st.button("💾 儲存設定", key="save_quota_settings"):
-            # Save settings to session state
-            st.session_state.quota_warning_threshold = warning_threshold
-            st.session_state.quota_critical_threshold = critical_threshold
-            st.success("✅ 配額設定已儲存")
+    #     if st.button("💾 儲存設定", key="save_quota_settings"):
+    #         # Save settings to session state
+    #         st.session_state.quota_warning_threshold = warning_threshold
+    #         st.session_state.quota_critical_threshold = critical_threshold
+    #         st.success("✅ 配額設定已儲存")
 
 
 def generate_quota_alerts(quota_accounts: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
@@ -340,78 +349,78 @@ def generate_quota_alerts(quota_accounts: List[Dict[str, Any]]) -> List[Dict[str
     return alerts
 
 
-def generate_quota_report(config_helper) -> str:
-    """Generate quota usage report"""
-    try:
-        accounts = config_helper.get_accounts()
-        quota_accounts = [acc for acc in accounts if acc.get('quota_info')]
+# def generate_quota_report(config_helper) -> str:
+#     """Generate quota usage report"""
+#     try:
+#         accounts = config_helper.get_accounts()
+#         quota_accounts = [acc for acc in accounts if acc.get('quota_info')]
 
-        report = {
-            'generated_at': datetime.now().isoformat(),
-            'total_accounts': len(quota_accounts),
-            'accounts': [],
-        }
+#         report = {
+#             'generated_at': datetime.now().isoformat(),
+#             'total_accounts': len(quota_accounts),
+#             'accounts': [],
+#         }
 
-        for account in quota_accounts:
-            quota_info = account.get('quota_info', {})
+#         for account in quota_accounts:
+#             quota_info = account.get('quota_info', {})
 
-            account_report = {
-                'name': account['name'],
-                'license_id': account['license_id'],
-                'quota_info': {
-                    'usage_percentage': quota_info.get('usage_percentage', 0),
-                    'remaining_amount': quota_info.get('remaining_amount', 'N/A'),
-                    'status': quota_info.get('status', 'unknown'),
-                },
-                'token_status': {
-                    'access_token_expired': account['access_token_expired'],
-                    'id_token_expired': account['id_token_expired'],
-                },
-            }
+#             account_report = {
+#                 'name': account['name'],
+#                 'license_id': account['license_id'],
+#                 'quota_info': {
+#                     'usage_percentage': quota_info.get('usage_percentage', 0),
+#                     'remaining_amount': quota_info.get('remaining_amount', 'N/A'),
+#                     'status': quota_info.get('status', 'unknown'),
+#                 },
+#                 'token_status': {
+#                     'access_token_expired': account['access_token_expired'],
+#                     'id_token_expired': account['id_token_expired'],
+#                 },
+#             }
 
-            report['accounts'].append(account_report)
+#             report['accounts'].append(account_report)
 
-        return json.dumps(report, indent=2, ensure_ascii=False)
+#         return json.dumps(report, indent=2, ensure_ascii=False)
 
-    except Exception as e:
-        st.error(f"生成配額報告失敗: {str(e)}")
-        return ""
-
-
-def get_quota_trend(account_name: str) -> Dict[str, Any]:
-    """Get quota usage trend for account (placeholder)"""
-    # This would be implemented with historical data
-    return {'trend': 'stable', 'change_percentage': 0.0, 'prediction': 'normal'}
+#     except Exception as e:
+#         st.error(f"生成配額報告失敗: {str(e)}")
+#         return ""
 
 
-def calculate_quota_efficiency(quota_accounts: List[Dict[str, Any]]) -> float:
-    """Calculate overall quota efficiency"""
-    if not quota_accounts:
-        return 0.0
-
-    total_usage = sum(acc['quota_info'].get('usage_percentage', 0) for acc in quota_accounts)
-    average_usage = total_usage / len(quota_accounts)
-
-    # Efficiency is inversely related to usage (more headroom = more efficient)
-    efficiency = max(0, 100 - average_usage)
-    return efficiency
+# def get_quota_trend(account_name: str) -> Dict[str, Any]:
+#     """Get quota usage trend for account (placeholder)"""
+#     # This would be implemented with historical data
+#     return {'trend': 'stable', 'change_percentage': 0.0, 'prediction': 'normal'}
 
 
-def render_quota_analytics():
-    """Render quota analytics section (advanced feature)"""
-    st.subheader("📈 配額分析")
+# def calculate_quota_efficiency(quota_accounts: List[Dict[str, Any]]) -> float:
+#     """Calculate overall quota efficiency"""
+#     if not quota_accounts:
+#         return 0.0
 
-    # This would include:
-    # - Usage trends over time
-    # - Prediction models
-    # - Optimization recommendations
-    # - Cost analysis
+#     total_usage = sum(acc['quota_info'].get('usage_percentage', 0) for acc in quota_accounts)
+#     average_usage = total_usage / len(quota_accounts)
 
-    st.info("📊 配額分析功能開發中...")
+#     # Efficiency is inversely related to usage (more headroom = more efficient)
+#     efficiency = max(0, 100 - average_usage)
+#     return efficiency
 
-    # Placeholder for future analytics features
-    st.write("未來功能預覽:")
-    st.write("- 使用趨勢分析")
-    st.write("- 配額預測模型")
-    st.write("- 最佳化建議")
-    st.write("- 成本分析")
+
+# def render_quota_analytics():
+#     """Render quota analytics section (advanced feature)"""
+#     st.subheader("📈 配額分析")
+
+#     # This would include:
+#     # - Usage trends over time
+#     # - Prediction models
+#     # - Optimization recommendations
+#     # - Cost analysis
+
+#     st.info("📊 配額分析功能開發中...")
+
+#     # Placeholder for future analytics features
+#     st.write("未來功能預覽:")
+#     st.write("- 使用趨勢分析")
+#     st.write("- 配額預測模型")
+#     st.write("- 最佳化建議")
+#     st.write("- 成本分析")

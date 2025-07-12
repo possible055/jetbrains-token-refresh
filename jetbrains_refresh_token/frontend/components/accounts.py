@@ -105,13 +105,22 @@ def render_account_card(account: Dict[str, Any], config_helper):
             st.write("**操作:**")
 
             if st.button("🔄 刷新 Access Token", key=f"refresh_access_{account['name']}"):
-                with st.spinner("正在刷新 Access Token..."):
-                    success = config_helper.refresh_account_access_token(account['name'])
-                    if success:
-                        st.success("✅ Access Token 刷新成功")
-                        st.rerun()
-                    else:
-                        st.error("❌ Access Token 刷新失敗")
+                # Use background task system if available
+                background_tasks = st.session_state.get('background_tasks')
+                if background_tasks:
+                    task_id = background_tasks.add_refresh_access_tokens_task(
+                        account_name=account['name'], forced=False, priority=5
+                    )
+                    st.success(f"✅ 已添加刷新任務到背景隊列 (ID: {task_id[:8]})")
+                else:
+                    # Fallback to direct execution
+                    with st.spinner("正在刷新 Access Token..."):
+                        success = config_helper.refresh_account_access_token(account['name'])
+                        if success:
+                            st.success("✅ Access Token 刷新成功")
+                            st.rerun()
+                        else:
+                            st.error("❌ Access Token 刷新失敗")
 
             if st.button("📊 檢查配額", key=f"check_quota_{account['name']}"):
                 with st.spinner("正在檢查配額..."):
@@ -204,12 +213,30 @@ def render_add_account(config_helper):
     """Render add account form"""
     st.subheader("➕ 新增帐号")
 
-    with st.form("add_account"):
+    # Initialize form reset flag in session state
+    if 'form_reset_flag' not in st.session_state:
+        st.session_state.form_reset_flag = False
+
+    # Check if form should be reset
+    if st.session_state.form_reset_flag:
+        # Reset the flag and clear form values
+        st.session_state.form_reset_flag = False
+        # Force a rerun to clear the form
+        st.rerun()
+
+    with st.form("add_account", clear_on_submit=True):
         st.write("请填写以下资讯来新增帐号：")
 
-        account_name = st.text_input("帐号名称 *", placeholder="输入帐号名称")
-        license_id = st.text_input("License ID *", placeholder="输入 JetBrains License ID")
-        id_token = st.text_input("ID Token *", placeholder="输入 ID Token")
+        # Use session state to control form values
+        account_name_key = "add_account_name"
+        license_id_key = "add_license_id"
+        id_token_key = "add_id_token"
+
+        account_name = st.text_input("帐号名称 *", placeholder="输入帐号名称", key=account_name_key)
+        license_id = st.text_input(
+            "License ID *", placeholder="输入 JetBrains License ID", key=license_id_key
+        )
+        id_token = st.text_input("ID Token *", placeholder="输入 ID Token", key=id_token_key)
 
         st.markdown("*为必填栏位")
 
@@ -223,6 +250,15 @@ def render_add_account(config_helper):
                     success = config_helper.add_account(account_name, id_token, license_id)
                     if success:
                         st.success("✅ 帐号新增成功")
+                        # Clear form fields by removing them from session state
+                        if account_name_key in st.session_state:
+                            del st.session_state[account_name_key]
+                        if license_id_key in st.session_state:
+                            del st.session_state[license_id_key]
+                        if id_token_key in st.session_state:
+                            del st.session_state[id_token_key]
+                        # Set flag to reset form on next render
+                        st.session_state.form_reset_flag = True
                         st.rerun()
                     else:
                         st.error("❌ 帐号新增失敗")
@@ -278,29 +314,51 @@ def render_batch_operations(config_helper):
 
     with col1:
         if st.button("🔄 批次刷新 Access Token", key="batch_refresh_access"):
-            with st.spinner("正在批次刷新 Access Token..."):
-                success_count = 0
+            # Use background task system if available
+            background_tasks = st.session_state.get('background_tasks')
+            if background_tasks:
+                task_ids = []
                 for account_name in selected_accounts:
-                    if config_helper.refresh_account_access_token(account_name):
-                        success_count += 1
-
-                if success_count == len(selected_accounts):
-                    st.success(f"✅ 所有 {len(selected_accounts)} 個帳戶的 Access Token 刷新成功")
-                else:
-                    st.warning(
-                        f"⚠️ {success_count}/{len(selected_accounts)} 個帳戶的 Access Token 刷新成功"
+                    task_id = background_tasks.add_refresh_access_tokens_task(
+                        account_name=account_name, forced=False, priority=5
                     )
-                st.rerun()
+                    task_ids.append(task_id[:8])
+                st.success(f"✅ 已添加 {len(selected_accounts)} 個刷新任務到背景隊列")
+                st.info(f"任務 ID: {', '.join(task_ids)}")
+            else:
+                # Fallback to direct execution
+                with st.spinner("正在批次刷新 Access Token..."):
+                    success_count = 0
+                    for account_name in selected_accounts:
+                        if config_helper.refresh_account_access_token(account_name):
+                            success_count += 1
+
+                    if success_count == len(selected_accounts):
+                        st.success(
+                            f"✅ 所有 {len(selected_accounts)} 個帳戶的 Access Token 刷新成功"
+                        )
+                    else:
+                        st.warning(
+                            f"⚠️ {success_count}/{len(selected_accounts)} 個帳戶的 Access Token 刷新成功"
+                        )
+                    st.rerun()
 
     with col2:
         if st.button("📊 批次檢查配額", key="batch_check_quota"):
-            with st.spinner("正在批次檢查配額..."):
-                success = config_helper.check_all_quotas()
-                if success:
-                    st.success("✅ 所有帳戶的配額檢查完成")
-                else:
-                    st.error("❌ 部分帳戶的配額檢查失敗")
-                st.rerun()
+            # Use background task system if available
+            background_tasks = st.session_state.get('background_tasks')
+            if background_tasks:
+                task_id = background_tasks.add_check_quotas_task(priority=3)
+                st.success(f"✅ 已添加配額檢查任務到背景隊列 (ID: {task_id[:8]})")
+            else:
+                # Fallback to direct execution
+                with st.spinner("正在批次檢查配額..."):
+                    success = config_helper.check_all_quotas()
+                    if success:
+                        st.success("✅ 所有帳戶的配額檢查完成")
+                    else:
+                        st.error("❌ 部分帳戶的配額檢查失敗")
+                    st.rerun()
 
     # Batch delete warning
     st.markdown("---")

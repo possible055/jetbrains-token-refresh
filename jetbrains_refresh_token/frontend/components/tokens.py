@@ -1,8 +1,9 @@
-import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
 import streamlit as st
+
+from jetbrains_refresh_token.constants import DEFAULT_TIMEZONE
 
 
 def render():
@@ -16,7 +17,7 @@ def render():
         return
 
     # Auto-refresh toggle
-    render_auto_refresh_control()
+    # render_auto_refresh_control()
 
     # Token overview section
     render_token_overview(config_helper)
@@ -24,54 +25,55 @@ def render():
     # Token details section
     render_token_details(config_helper)
 
-    # Token history section
-    render_token_history()
+    # # Token history section
+    # render_token_history()
 
 
-def render_auto_refresh_control():
-    """Render auto-refresh control"""
-    st.subheader("🔄 自动刷新设定")
+# def render_auto_refresh_control():
+#     """Render auto-refresh control"""
+#     st.subheader("🔄 自动刷新设定")
 
-    col1, col2, col3 = st.columns([2, 2, 1])
+#     col1, col2, col3 = st.columns([2, 2, 1])
 
-    with col1:
-        auto_refresh = st.checkbox(
-            "启用自动刷新",
-            value=st.session_state.get('auto_refresh_enabled', True),
-            key='auto_refresh_toggle',
-        )
-        st.session_state.auto_refresh_enabled = auto_refresh
+#     with col1:
+#         auto_refresh = st.checkbox(
+#             "启用自动刷新",
+#             value=st.session_state.get('auto_refresh_enabled', True),
+#             key='auto_refresh_toggle',
+#         )
+#         st.session_state.auto_refresh_enabled = auto_refresh
 
-    with col2:
-        if auto_refresh:
-            refresh_interval = st.slider(
-                "刷新间隔（秒）",
-                min_value=30,
-                max_value=300,
-                value=st.session_state.get('refresh_interval', 30),
-                key='refresh_interval_slider',
-            )
-            st.session_state.refresh_interval = refresh_interval
-        else:
-            st.write("自动刷新已停用")
+#     with col2:
+#         if auto_refresh:
+#             refresh_interval = st.slider(
+#                 "刷新间隔（秒）",
+#                 min_value=30,
+#                 max_value=300,
+#                 value=st.session_state.get('refresh_interval', 30),
+#                 key='refresh_interval_slider',
+#             )
+#             st.session_state.refresh_interval = refresh_interval
+#         else:
+#             st.write("自动刷新已停用")
 
-    with col3:
-        if st.button("🔄 立即刷新", key="manual_refresh"):
-            st.rerun()
+#     with col3:
+#         if st.button("🔄 立即刷新", key="manual_refresh"):
+#             st.rerun()
 
-    # Auto-refresh logic (using placeholder instead of blocking sleep)
-    if auto_refresh:
-        refresh_placeholder = st.empty()
-        with refresh_placeholder:
-            st.info(f"🔄 自动刷新启用 - 每 {st.session_state.get('refresh_interval', 30)} 秒更新")
-
-        # Use session state to track last refresh time
-        current_time = time.time()
-        last_refresh_time = st.session_state.get('last_token_refresh', 0)
-
-        if current_time - last_refresh_time >= st.session_state.get('refresh_interval', 30):
-            st.session_state.last_token_refresh = current_time
-            st.rerun()
+#     # Auto-refresh status display (background tasks handle actual refresh)
+#     if auto_refresh:
+#         refresh_placeholder = st.empty()
+#         with refresh_placeholder:
+#             # Check if background services are available
+#             if (
+#                 st.session_state.get('scheduler_service')
+#                 and st.session_state.scheduler_service.is_running
+#             ):
+#                 st.success(
+#                     f"🔄 自动刷新已启用 - 背景服务每 {st.session_state.get('refresh_interval', 30)} 秒检查更新"
+#                 )
+#             else:
+#                 st.warning("⚠️ 背景服务未运行，自动刷新功能不可用")
 
 
 def render_token_overview(config_helper):
@@ -95,14 +97,6 @@ def render_token_overview(config_helper):
         st.metric("总帐号数", total_accounts, help="系统中的总帐号数量")
 
     with col2:
-        st.metric(
-            "Access Token 过期",
-            access_expired,
-            delta=f"{access_expired}/{total_accounts}",
-            delta_color="inverse",
-        )
-
-    with col3:
         healthy_accounts = total_accounts - access_expired
         st.metric(
             "健康帐户",
@@ -111,21 +105,29 @@ def render_token_overview(config_helper):
             delta_color="normal",
         )
 
+    with col3:
+        st.metric(
+            "Access Token 过期",
+            access_expired,
+            delta=f"{access_expired}/{total_accounts}",
+            delta_color="inverse",
+        )
+
     # Token expiration timeline
     render_expiration_timeline(accounts)
 
 
 def render_expiration_timeline(accounts: List[Dict[str, Any]]):
     """Render token expiration timeline"""
-    st.subheader("⏰ 金钥过期时间轴")
+    st.subheader("⏰ 时间轴")
 
-    now = datetime.now()
+    now = datetime.now(DEFAULT_TIMEZONE)
     upcoming_expirations = []
 
     for account in accounts:
         # Check access token expiration
         if account['access_expires_at']:
-            expires_dt = datetime.fromtimestamp(account['access_expires_at'])
+            expires_dt = datetime.fromtimestamp(account['access_expires_at'], tz=DEFAULT_TIMEZONE)
             time_until = expires_dt - now
 
             if time_until > timedelta(0):  # Future expiration
@@ -205,11 +207,11 @@ def render_access_token_details(account: Dict[str, Any], config_helper):
 
     # Expiration time
     if account['access_expires_at']:
-        expires_dt = datetime.fromtimestamp(account['access_expires_at'])
-        st.write(f"**过期时间:** {expires_dt.strftime('%Y-%m-%d %H:%M:%S')}")
+        expires_dt = datetime.fromtimestamp(account['access_expires_at'], tz=DEFAULT_TIMEZONE)
+        st.write(f"**过期时间:** {expires_dt.strftime('%Y-%m-%d %H:%M:%S %Z')}")
 
         # Time until expiration
-        now = datetime.now()
+        now = datetime.now(DEFAULT_TIMEZONE)
         time_until = expires_dt - now
 
         if time_until > timedelta(0):
@@ -224,66 +226,90 @@ def render_access_token_details(account: Dict[str, Any], config_helper):
 
     with col1:
         if st.button("🔄 手動刷新", key=f"refresh_access_detail_{account['name']}"):
-            with st.spinner("正在刷新 Access Token..."):
-                success = config_helper.refresh_account_access_token(account['name'], forced=True)
-                if success:
-                    st.success("✅ Access Token 刷新成功")
-                    st.rerun()
-                else:
-                    st.error("❌ Access Token 刷新失敗")
+            # Use background task system if available
+            background_tasks = st.session_state.get('background_tasks')
+            if background_tasks:
+                task_id = background_tasks.add_refresh_access_tokens_task(
+                    account_name=account['name'], forced=False, priority=5
+                )
+                st.success(f"✅ 已添加刷新任務到背景隊列 (ID: {task_id[:8]})")
+            else:
+                # Fallback to direct execution
+                with st.spinner("正在刷新 Access Token..."):
+                    success = config_helper.refresh_account_access_token(
+                        account['name'], forced=False
+                    )
+                    if success:
+                        st.success("✅ Access Token 刷新成功")
+                        st.rerun()
+                    else:
+                        st.error("❌ Access Token 刷新失敗")
 
     with col2:
         if st.button("🔄 強制刷新", key=f"force_refresh_access_detail_{account['name']}"):
-            with st.spinner("正在強制刷新 Access Token..."):
-                success = config_helper.refresh_account_access_token(account['name'], forced=True)
-                if success:
-                    st.success("✅ Access Token 強制刷新成功")
-                    st.rerun()
-                else:
-                    st.error("❌ Access Token 強制刷新失敗")
-
-
-def render_token_history():
-    """Render token refresh history"""
-    st.subheader("📋 Token 操作歷史")
-
-    # Get session logs from state manager
-    state_manager = st.session_state.get('state_manager')
-    if not state_manager:
-        st.info("📝 無歷史記錄")
-        return
-
-    session_id = st.session_state.get('session_id', '')
-    logs = state_manager.get_session_logs(session_id, limit=50)
-
-    if not logs:
-        st.info("📝 本次會話尚無操作記錄")
-        return
-
-    # Filter token-related logs
-    token_logs = [
-        log
-        for log in logs
-        if any(keyword in log[0].lower() for keyword in ['token', 'refresh', 'access', 'id'])
-    ]
-
-    if not token_logs:
-        st.info("📝 本次會話尚無 Token 相關操作記錄")
-        return
-
-    # Display logs in a table-like format
-    st.write("最近的 Token 操作:")
-
-    for i, (action, details, timestamp) in enumerate(
-        token_logs[:20]
-    ):  # Show last 20 token operations
-        formatted_time = datetime.fromisoformat(timestamp).strftime('%H:%M:%S')
-
-        with st.expander(f"🕐 {formatted_time} - {action}", expanded=False):
-            if details:
-                st.write(details)
+            # Use background task system if available
+            background_tasks = st.session_state.get('background_tasks')
+            if background_tasks:
+                task_id = background_tasks.add_refresh_access_tokens_task(
+                    account_name=account['name'], forced=True, priority=8
+                )
+                st.success(f"✅ 已添加強制刷新任務到背景隊列 (ID: {task_id[:8]})")
             else:
-                st.write("無詳細資訊")
+                # Fallback to direct execution
+                with st.spinner("正在強制刷新 Access Token..."):
+                    success = config_helper.refresh_account_access_token(
+                        account['name'], forced=True
+                    )
+                    if success:
+                        st.success("✅ Access Token 強制刷新成功")
+                        st.rerun()
+                    else:
+                        st.error("❌ Access Token 強制刷新失敗")
+
+
+# def render_token_history():
+#     """Render token refresh history"""
+#     st.subheader("📋 Token 操作歷史")
+
+#     # Get session logs from state manager
+#     state_manager = st.session_state.get('state_manager')
+#     if not state_manager:
+#         st.info("📝 無歷史記錄")
+#         return
+
+#     session_id = st.session_state.get('session_id', '')
+#     logs = state_manager.get_session_logs(session_id, limit=50)
+
+#     if not logs:
+#         st.info("📝 本次會話尚無操作記錄")
+#         return
+
+#     # Filter token-related logs
+#     token_logs = [
+#         log
+#         for log in logs
+#         if any(keyword in log[0].lower() for keyword in ['token', 'refresh', 'access', 'id'])
+#     ]
+
+#     if not token_logs:
+#         st.info("📝 本次會話尚無 Token 相關操作記錄")
+#         return
+
+#     # Display logs in a table-like format
+#     st.write("最近的 Token 操作:")
+
+#     for action, details, timestamp in token_logs[:20]:  # Show last 20 token operations
+#         # Parse timestamp and ensure it has timezone info
+#         dt = datetime.fromisoformat(timestamp)
+#         if dt.tzinfo is None:
+#             dt = dt.replace(tzinfo=DEFAULT_TIMEZONE)
+#         formatted_time = dt.strftime('%H:%M:%S')
+
+#         with st.expander(f"🕐 {formatted_time} - {action}", expanded=False):
+#             if details:
+#                 st.write(details)
+#             else:
+#                 st.write("無詳細資訊")
 
 
 def get_urgency_level(time_until: timedelta) -> str:

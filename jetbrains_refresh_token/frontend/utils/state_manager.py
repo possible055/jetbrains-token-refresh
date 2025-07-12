@@ -11,6 +11,8 @@ from typing import Any, Dict, Optional
 
 import streamlit as st
 
+from jetbrains_refresh_token.constants import DEFAULT_TIMEZONE
+
 
 class PersistentStateManager:
     """Manages persistent state for the Streamlit application"""
@@ -58,7 +60,7 @@ class PersistentStateManager:
                     INSERT OR REPLACE INTO app_state (key, value, updated_at)
                     VALUES (?, ?, ?)
                 ''',
-                    (key, json_value, datetime.now().isoformat()),
+                    (key, json_value, datetime.now(DEFAULT_TIMEZONE).isoformat()),
                 )
                 conn.commit()
             return True
@@ -128,10 +130,10 @@ class PersistentStateManager:
                 cursor = conn.cursor()
                 cursor.execute(
                     '''
-                    INSERT INTO session_logs (session_id, action, details)
-                    VALUES (?, ?, ?)
+                    INSERT INTO session_logs (session_id, action, details, timestamp)
+                    VALUES (?, ?, ?, ?)
                 ''',
-                    (session_id, action, details),
+                    (session_id, action, details, datetime.now(DEFAULT_TIMEZONE).isoformat()),
                 )
                 conn.commit()
             return True
@@ -164,7 +166,11 @@ class PersistentStateManager:
             st.session_state.persistent_state = self.load_all_states()
 
         if 'session_id' not in st.session_state:
-            st.session_state.session_id = f"session_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+            # Generate session_id based on app startup time, not current time
+            startup_time = datetime.now(DEFAULT_TIMEZONE)
+            st.session_state.session_id = f"session_{startup_time.strftime('%Y%m%d_%H%M%S')}"
+            # Store startup time for reference
+            st.session_state.app_startup_time = startup_time.isoformat()
 
         # Initialize common state keys
         default_states = {

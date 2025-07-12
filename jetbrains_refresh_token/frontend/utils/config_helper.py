@@ -1,144 +1,28 @@
-"""
-Configuration Helper for Streamlit Application
-Bridges existing configuration system with Streamlit frontend
-"""
-
 import json
 import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, Dict, List, Optional
+
+from jetbrains_refresh_token.api.auth import (
+    check_quota_remaining,
+    refresh_expired_access_token,
+    refresh_expired_access_tokens,
+)
+from jetbrains_refresh_token.config.loader import load_config
+from jetbrains_refresh_token.config.manager import (
+    backup_config_file,
+    export_to_another_format,
+)
+from jetbrains_refresh_token.config.utils import (
+    is_access_token_expired,
+    parse_jwt_expiration,
+)
+from jetbrains_refresh_token.constants import CONFIG_PATH
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
-
-
-# Fallback implementations for development
-def _fallback_load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
-    """Fallback implementation for load_config"""
-    return {"accounts": {}}
-
-
-def _fallback_resolve_config_path(config_path: Optional[str] = None) -> Path:
-    """Fallback implementation for resolve_config_path"""
-    return Path("config.json")
-
-
-def _fallback_backup_config_file(config_path: Optional[str] = None) -> bool:
-    """Fallback implementation for backup_config_file"""
-    return True
-
-
-def _fallback_list_accounts(config_path: Optional[str] = None) -> List[str]:
-    """Fallback implementation for list_accounts"""
-    return []
-
-
-def _fallback_save_access_tokens(
-    config: Dict[str, Any],
-    config_path: Optional[str] = None,
-    updated_accounts: Optional[List[str]] = None,
-) -> bool:
-    """Fallback implementation for save_access_tokens"""
-    return True
-
-
-def _fallback_save_id_tokens(
-    config: Dict[str, Any],
-    config_path: Optional[str] = None,
-    updated_accounts: Optional[List[str]] = None,
-) -> bool:
-    """Fallback implementation for save_id_tokens"""
-    return True
-
-
-def _fallback_save_quota_info(
-    config: Dict[str, Any],
-    account_name: str,
-    quota_data: Dict[str, Any],
-    config_path: Optional[str] = None,
-) -> bool:
-    """Fallback implementation for save_quota_info"""
-    return True
-
-
-def _fallback_is_jwt_expired(token: str) -> bool:
-    """Fallback implementation for is_jwt_expired"""
-    return False
-
-
-def _fallback_is_id_token_expired(expires_at: Union[int, float, str, None]) -> bool:
-    """Fallback implementation for is_id_token_expired"""
-    return False
-
-
-def _fallback_parse_jwt_expiration(token: str) -> Optional[float]:
-    """Fallback implementation for parse_jwt_expiration"""
-    return None
-
-
-def _fallback_refresh_expired_access_token(
-    account_name: str, config_path: Optional[str] = None, forced: bool = False
-) -> bool:
-    """Fallback implementation for refresh_expired_access_token"""
-    return True
-
-
-def _fallback_refresh_expired_access_tokens(
-    config_path: Optional[str] = None, forced: bool = False
-) -> bool:
-    """Fallback implementation for refresh_expired_access_tokens"""
-    return True
-
-
-def _fallback_check_quota_remaining(config_path: Optional[str] = None) -> bool:
-    """Fallback implementation for check_quota_remaining"""
-    return True
-
-
-def _fallback_auto_export_jetbrainsai_format(config_path: Optional[str] = None) -> bool:
-    """Fallback implementation for auto_export_jetbrainsai_format"""
-    return True
-
-
-# Try to import existing modules, use fallbacks if not available
-try:
-    from jetbrains_refresh_token.api.auth import (
-        check_quota_remaining,
-        refresh_expired_access_token,
-        refresh_expired_access_tokens,
-    )
-    from jetbrains_refresh_token.config.loader import load_config, resolve_config_path
-    from jetbrains_refresh_token.config.manager import (
-        auto_export_jetbrainsai_format,
-        backup_config_file,
-    )
-    from jetbrains_refresh_token.config.utils import (
-        is_jwt_expired,
-        parse_jwt_expiration,
-    )
-except ImportError as e:
-    print(f"Warning: Could not import existing modules: {e}")
-    # Use fallback implementations
-    load_config = _fallback_load_config
-    resolve_config_path = _fallback_resolve_config_path
-    backup_config_file = _fallback_backup_config_file
-    list_accounts = _fallback_list_accounts
-    save_access_tokens = _fallback_save_access_tokens
-    save_id_tokens = _fallback_save_id_tokens
-    save_quota_info = _fallback_save_quota_info
-    is_jwt_expired = _fallback_is_jwt_expired
-    is_id_token_expired = _fallback_is_id_token_expired
-    parse_jwt_expiration = _fallback_parse_jwt_expiration
-    refresh_expired_access_token = _fallback_refresh_expired_access_token
-    refresh_expired_access_tokens = _fallback_refresh_expired_access_tokens
-    check_quota_remaining = _fallback_check_quota_remaining
-    auto_export_jetbrainsai_format = _fallback_auto_export_jetbrainsai_format
-
-    # Create placeholder for missing functions
-    def list_accounts_data(config_path: Optional[str] = None) -> List[Dict[str, Any]]:
-        return []
 
 
 class ConfigHelper:
@@ -164,7 +48,7 @@ class ConfigHelper:
 
         # Load fresh config
         try:
-            config = load_config(self.config_path)
+            config = load_config()
             if config:
                 self._config_cache = config
                 self._cache_timestamp = current_time
@@ -190,7 +74,7 @@ class ConfigHelper:
             return {
                 "valid": True,
                 "accounts_count": len(accounts),
-                "config_path": str(resolve_config_path(self.config_path)),
+                "config_path": CONFIG_PATH,
                 "last_loaded": self._cache_timestamp.isoformat() if self._cache_timestamp else None,
             }
         except Exception as e:
@@ -207,7 +91,9 @@ class ConfigHelper:
                 # Calculate token status
                 access_token = data.get("access_token", "")
 
-                access_token_expired = is_jwt_expired(access_token) if access_token else True
+                access_token_expired = (
+                    is_access_token_expired(access_token) if access_token else True
+                )
 
                 # Parse expiration times
                 access_expires_at = parse_jwt_expiration(access_token) if access_token else None
@@ -235,7 +121,7 @@ class ConfigHelper:
         """Determine account status based on token states"""
         access_token = account_data.get("access_token", "")
 
-        access_expired = is_jwt_expired(access_token) if access_token else True
+        access_expired = is_access_token_expired(access_token) if access_token else True
 
         if access_expired:
             return "🔴 Access Token 過期"
@@ -253,7 +139,7 @@ class ConfigHelper:
     def backup_config(self) -> bool:
         """Backup configuration file"""
         try:
-            return backup_config_file(self.config_path)
+            return backup_config_file()
         except Exception as e:
             print(f"Error backing up config: {e}")
             return False
@@ -261,15 +147,15 @@ class ConfigHelper:
     def refresh_account_access_token(self, account_name: str, forced: bool = False) -> bool:
         """Refresh access token for specific account"""
         try:
-            return refresh_expired_access_token(account_name, self.config_path, forced)
+            return refresh_expired_access_token(account_name, forced)
         except Exception as e:
             print(f"Error refreshing access token: {e}")
             return False
 
-    def refresh_all_access_tokens(self, forced: bool = False) -> bool:
+    def refresh_all_access_tokens(self, is_forced: bool = False) -> bool:
         """Refresh all access tokens"""
         try:
-            return refresh_expired_access_tokens(self.config_path, forced)
+            return refresh_expired_access_tokens(is_forced)
         except Exception as e:
             print(f"Error refreshing all access tokens: {e}")
             return False
@@ -277,7 +163,7 @@ class ConfigHelper:
     def check_all_quotas(self) -> bool:
         """Check quotas for all accounts"""
         try:
-            return check_quota_remaining(self.config_path)
+            return check_quota_remaining()
         except Exception as e:
             print(f"Error checking quotas: {e}")
             return False
@@ -341,12 +227,9 @@ class ConfigHelper:
     def _save_config(self, config: Dict[str, Any]) -> bool:
         """Save configuration to file"""
         try:
-            config_path = resolve_config_path(self.config_path)
+            backup_config_file()
 
-            # Backup before saving
-            backup_config_file(self.config_path)
-
-            with open(config_path, 'w', encoding='utf-8') as f:
+            with open(CONFIG_PATH, 'w', encoding='utf-8') as f:
                 json.dump(config, f, indent=2, ensure_ascii=False)
 
             # Clear cache to force reload
@@ -354,7 +237,7 @@ class ConfigHelper:
             self._cache_timestamp = None
 
             # Auto-export to jetbrainsai.json format after saving config
-            auto_export_jetbrainsai_format(self.config_path)
+            export_to_another_format()
 
             return True
         except Exception as e:
@@ -364,17 +247,16 @@ class ConfigHelper:
     def get_system_info(self) -> Dict[str, Any]:
         """Get system information"""
         try:
-            config_path = resolve_config_path(self.config_path)
             config = self.get_config()
 
             return {
-                "config_path": str(config_path),
-                "config_exists": config_path.exists(),
-                "config_size": config_path.stat().st_size if config_path.exists() else 0,
+                "config_path": str(CONFIG_PATH),
+                "config_exists": CONFIG_PATH.exists(),
+                "config_size": CONFIG_PATH.stat().st_size if CONFIG_PATH.exists() else 0,
                 "accounts_count": len(config.get("accounts", {})),
                 "last_modified": (
-                    datetime.fromtimestamp(config_path.stat().st_mtime).isoformat()
-                    if config_path.exists()
+                    datetime.fromtimestamp(CONFIG_PATH.stat().st_mtime).isoformat()
+                    if CONFIG_PATH.exists()
                     else None
                 ),
             }
